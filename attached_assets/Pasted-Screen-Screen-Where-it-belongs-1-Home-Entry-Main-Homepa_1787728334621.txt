@@ -1,0 +1,200 @@
+Screen	Screen	Where it belongs
+1	Home / Entry	🏠 Main Homepage
+2	3D Symptom Intake	Report a Symptom flow
+3	Red-Flag Questionnaire	Report a Symptom flow
+4A	Red-Flag Outcome	Severity Gate branch
+4B	Safe → AI Chat	Severity Gate → AI
+5	Exercise & Diet	Inside AI Chat
+6	Doctor/Physio Matching	From AI / escalation / physio request
+7	Patient Consultation	Central Care/Consultation Thread
+8	Doctor Consultation	Doctor's patient thread
+9	Doctor 3D Annotation	Inside Doctor Consultation
+10	Prescription Draft	Inside Doctor Consultation
+11	Patient Prescription	Patient's Consultation/Care
+12	Lab Reports	Patient's Consultation/Care → Reports
+13	Physio Location	Physio workflow after acceptance
+14	Physio Feedback	Physio Dashboard → Session
+15	X-Ray Upload	Patient Consultation → Imaging
+16	X-Ray Viewer	Doctor Consultation → Imaging
+17	Appointment Booking	Homepage OR Consultation escalation
+18	24h Follow-Up	System push/in-app → Existing Care Thread
+23. The actual patient navigation should therefore look like this
+
+I would recommend this for the Replit prototype:
+
+                    🏠 HOME
+                      │
+          ┌───────────┼───────────┐
+          │           │           │
+          ▼           ▼           ▼
+     REPORT A      BOOK        CONTINUE
+     SYMPTOM     APPOINTMENT     CARE
+          │
+          ▼
+      3D INTAKE
+          │
+          ▼
+    RED-FLAG CHECK
+          │
+       ┌──┴──┐
+       ▼     ▼
+    RED FLAG SAFE
+       │     │
+       ▼     ▼
+    DOCTOR   AI CHAT
+              │
+              ├── Exercise/Diet
+              │
+              └── Talk to Doctor
+                       │
+                       ▼
+                 PROVIDER MATCHING
+                       │
+                       ▼
+              CONSULTATION THREAD
+                       │
+        ┌──────────────┼──────────────┐
+        ▼              ▼              ▼
+       CHAT           3D           REPORTS
+        │              │              │
+        │              │              ├── Labs
+        │              │              └── X-Ray
+        │              │
+        │              └── Doctor Annotation
+        │
+        ├── Prescription
+        │
+        ├── Physio
+        │
+        └── Follow-Up
+24. And this is the Doctor side
+                👨‍⚕️ DOCTOR DASHBOARD
+                         │
+                         ▼
+                    PATIENT LIST
+                         │
+                         ▼
+                 PATIENT CONSULTATION
+                         │
+          ┌──────────────┼──────────────┐
+          ▼              ▼              ▼
+        CHAT          OVERVIEW          3D
+          │              │              │
+          │              ├── Symptoms   └── Annotation
+          │              ├── Red Flags
+          │              └── AI Summary
+          │
+          ├── Differential Diagnosis
+          │
+          ├── SOAP Draft
+          │
+          ├── Reports
+          │
+          ├── Imaging
+          │      └── X-Ray Viewer
+          │
+          ├── Prescription
+          │      └── AI Draft → Approval
+          │
+          ├── Physio
+          │
+          └── Appointment
+25. And the Physio side
+
+This is where the earlier confusion gets resolved.
+
+              🧑‍⚕️ PHYSIO DASHBOARD
+                       │
+              ┌────────┴────────┐
+              │                 │
+              ▼                 ▼
+       Doctor-Referred     Patient-Requested
+              │                 │
+              │            3D + Red Flags
+              │                 │
+              └────────┬────────┘
+                       ▼
+                  Physio Case
+                       │
+                       ▼
+                  Patient Info
+                       │
+                       ▼
+                   Treatment
+                       │
+                       ▼
+                  Session
+                       │
+                       ▼
+                Feedback Form
+                       │
+                       ▼
+              Send to Doctor Thread
+
+For the doctor-referred case, the patient already has the clinical context, so there shouldn't be a pointless second "Report Symptoms" process. For the patient-requested physio without an existing assessment, the safety intake is required before routing to physio.
+
+26. The biggest design principle for your Replit prototype
+
+I would tell Claude/Replit not to interpret screens 2–18 as 18 separate navigation items.
+
+Instead:
+
+Main navigation
+
+Home
+
+My Care
+
+Appointments
+
+Profile
+
+And perhaps:
+
+Messages/Care
+
+Then:
+
+Inside My Care → Consultation
+
+You have:
+
+Overview | Chat | 3D | Reports | Imaging | Treatment | Physio
+
+That is where your teammate's point about the thread comes in.
+
+The document's own Screen 7 is already showing that the consultation thread contains things like the AI summary, doctor conversation, and doctor-approved lab summary.
+
+So yes, you were right to question why 3D, reports, imaging etc. would be completely separate pages. They can be separate views/tabs within the same consultation, which is a much better UX.
+
+27. One correction to the "tabs" idea
+
+I wouldn't necessarily make everything a permanent tab at the top because that could get crowded.
+
+I'd do:
+
+Consultation header
+
+Right Knee Pain
+Dr. Ahmed Khan
+● Active
+
+Then:
+
+Overview | Chat | Clinical Data | Treatment
+
+And inside Clinical Data:
+
+3D Body Map
+Reports
+Imaging
+
+Inside Treatment:
+
+Differential Diagnosis (doctor only)
+SOAP
+Prescription
+Physio
+Exercises
+
+This makes the prototype feel much more like a real healthcare application rather than a collection of 18 screens.

@@ -1,0 +1,420 @@
+Here's an ASCII wireframe pass for the screens that actually have a UI — I'm skipping pure backend modules (Severity Gate logic, RAG orchestration, Governance layer) since those aren't visual screens.
+
+## 1. Home / Entry Screen
+
+```
+┌─────────────────────────────────────────┐
+│  ShifaKinetix                      [👤]  │
+├─────────────────────────────────────────┤
+│                                           │
+│   How can we help you today?             │
+│                                           │
+│  ┌───────────────────────────────────┐  │
+│  │  🦴  Report a Symptom              │  │
+│  │      Start 3D pain mapping          │  │
+│  └───────────────────────────────────┘  │
+│                                           │
+│  ┌───────────────────────────────────┐  │
+│  │  📅  Book Appointment               │  │
+│  │      Doctor or physiotherapist      │  │
+│  └───────────────────────────────────┘  │
+│                                           │
+│  ┌───────────────────────────────────┐  │
+│  │  💬  Continue Care                  │  │
+│  │      Your active threads            │  │
+│  └───────────────────────────────────┘  │
+│                                           │
+└─────────────────────────────────────────┘
+```
+
+## 2. 3D Symptom Intake Screen
+
+```
+┌─────────────────────────────────────────┐
+│  ← Back        Symptom Mapping           │
+├─────────────────────────────────────────┤
+│                                           │
+│         [ 3D Human Body Model ]          │
+│              ●  ← tapped point           │
+│            /   \                         │
+│           |     |    (rotate/zoom        │
+│           |     |     controls)          │
+│                                           │
+├─────────────────────────────────────────┤
+│  Selected: Right Knee                    │
+│                                           │
+│  Depth:      ( ) Superficial  (•) Deep   │
+│                                           │
+│  Does pain spread elsewhere?             │
+│  [ + Add radiation point ]               │
+│                                           │
+│           [   Continue →   ]             │
+└─────────────────────────────────────────┘
+```
+
+## 3. Red-Flag Questionnaire Screen
+
+```
+┌─────────────────────────────────────────┐
+│  Safety Check (Knee)          3 of 8     │
+├─────────────────────────────────────────┤
+│                                           │
+│  Did this start after an injury          │
+│  or accident?                            │
+│                                           │
+│    ( ) Yes                               │
+│    ( ) No                                │
+│    ( ) Not sure                          │
+│                                           │
+│  ─────────────────────────────────       │
+│                                           │
+│  Do you have fever or feel generally     │
+│  unwell along with this?                 │
+│                                           │
+│    ( ) Yes    ( ) No    ( ) Not sure     │
+│                                           │
+│  [progress ●●●○○○○○]                     │
+│           [   Next →   ]                 │
+└─────────────────────────────────────────┘
+```
+
+## 4a. Severity Gate — Red Flag Outcome
+
+```
+┌─────────────────────────────────────────┐
+│                                           │
+│              ⚠️                          │
+│                                           │
+│   We recommend you see a doctor          │
+│   right away                             │
+│                                           │
+│   Based on your answers, this needs      │
+│   a clinician's attention. You're        │
+│   being connected now.                   │
+│                                           │
+│   Reason flagged:                        │
+│   • Fever + rapid symptom progression    │
+│                                           │
+│      [  Connect to Doctor Now  ]         │
+│                                           │
+└─────────────────────────────────────────┘
+```
+
+## 4b. Severity Gate — Safe Outcome → Chat
+
+```
+┌─────────────────────────────────────────┐
+│  AI Assistant              [Talk to Dr]  │
+├─────────────────────────────────────────┤
+│                                           │
+│  🤖 Thanks for sharing that. Based on    │
+│     what you described, this could be    │
+│     related to overuse of the knee       │
+│     joint. A doctor can confirm this.    │
+│                                           │
+│     Can you tell me — does the pain      │
+│     get worse when climbing stairs?      │
+│                                           │
+│                          You: Yes  🧑    │
+│                                           │
+│  ┌─────────────────────────────────┐    │
+│  │  Type a message...          [➤] │    │
+│  └─────────────────────────────────┘    │
+│                                           │
+│  ⚠ This is general guidance, not a       │
+│    diagnosis. [Talk to a doctor]         │
+└─────────────────────────────────────────┘
+```
+
+## 5. Exercise & Diet Guidance (within chat)
+
+```
+┌─────────────────────────────────────────┐
+│  Recommended for You                     │
+├─────────────────────────────────────────┤
+│                                           │
+│  🏃 EXERCISES                            │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐    │
+│  │ [GIF]   │ │ [GIF]   │ │ [GIF]   │    │
+│  │Quad Set │ │Straight │ │Wall     │    │
+│  │         │ │Leg Raise│ │Slides   │    │
+│  └─────────┘ └─────────┘ └─────────┘    │
+│                                           │
+│  🍽 DIET GUIDANCE                        │
+│  Foods that may help:                    │
+│   • Adrak (ginger) — anti-inflammatory   │
+│   • Machli (fish) — omega-3 source       │
+│                                           │
+│           [ Mark as Started ]            │
+└─────────────────────────────────────────┘
+```
+
+## 6. Doctor/Physio Matching Shortlist
+
+```
+┌─────────────────────────────────────────┐
+│  Choose a Doctor            [Filter ▾]   │
+├─────────────────────────────────────────┤
+│  ┌───────────────────────────────────┐  │
+│  │ 👨‍⚕️  Dr. Ahmed Khan                 │  │
+│  │     Orthopedic Surgeon              │  │
+│  │     ⭐ 4.8   2.3 km away            │  │
+│  │              [ Request ]            │  │
+│  └───────────────────────────────────┘  │
+│  ┌───────────────────────────────────┐  │
+│  │ 👩‍⚕️  Dr. Sara Malik                 │  │
+│  │     MSK Specialist                  │  │
+│  │     ⭐ 4.6   4.1 km away            │  │
+│  │              [ Request ]            │  │
+│  └───────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+```
+
+## 7. Consultation Thread — Patient View
+
+```
+┌─────────────────────────────────────────┐
+│  Dr. Ahmed Khan                  [📅]    │
+├─────────────────────────────────────────┤
+│                                           │
+│  🤖→👨‍⚕️ AI chat summary shared            │
+│                                           │
+│  👨‍⚕️ Dr. Ahmed: Thanks for sharing        │
+│      your history. Based on your         │
+│      symptoms, I'd like to prescribe     │
+│      some anti-inflammatory medicine.    │
+│      [ View Prescription ]               │
+│                                           │
+│  📄 Lab Summary (Doctor Approved)        │
+│      [ View Report ]                     │
+│                                           │
+│  ┌─────────────────────────────────┐    │
+│  │  Type a message...          [➤] │    │
+│  └─────────────────────────────────┘    │
+└─────────────────────────────────────────┘
+```
+
+## 8. Consultation Thread — Doctor View (with AI Draft + Differential)
+
+```
+┌─────────────────────────────────────────┐
+│  Patient: Ali Raza, 34          [3D 🦴]  │
+├─────────────────────────────────────────┤
+│  🤖 AI DRAFT — UNREVIEWED                │
+│  ┌───────────────────────────────────┐  │
+│  │ SOAP Note                         │  │
+│  │ S: Knee pain, 3 days, no trauma   │  │
+│  │ O: Swelling, unable to bear wt.   │  │
+│  │ A: Differential Diagnosis ▾       │  │
+│  │   1. Septic arthritis ⚠ (urgent)  │  │
+│  │      Match: fever+rapid+swelling  │  │
+│  │   2. Gout flare                   │  │
+│  │   3. Osteoarthritis flare         │  │
+│  │ P: [AI suggested plan]            │  │
+│  └───────────────────────────────────┘  │
+│         [ Edit ]  [ Approve & Send ]     │
+└─────────────────────────────────────────┘
+```
+
+## 9. Doctor 3D Annotation Tool
+
+```
+┌─────────────────────────────────────────┐
+│  Annotate — Ali Raza's Knee              │
+├─────────────────────────────────────────┤
+│                                           │
+│         [ 3D Model — Doctor Layer ]      │
+│              ● patient point (grey)      │
+│              ▲ doctor pin (teal)         │
+│           ╱──╲ boundary marker           │
+│                                           │
+│  Layers:  [Skin] [Muscle] [Bone]         │
+│                                           │
+│  [ 🎙 Record Voice Walkthrough ]         │
+│  [ 📌 Add Pin ]  [ ⬚ Draw Boundary ]     │
+│                                           │
+│           [   Save Annotation   ]        │
+└─────────────────────────────────────────┘
+```
+
+## 10. Prescription Draft/Approval (Doctor)
+
+```
+┌─────────────────────────────────────────┐
+│  Prescription — Ali Raza                 │
+├─────────────────────────────────────────┤
+│  🤖 AI Draft — Unreviewed                │
+│                                           │
+│  Medicine: Diclofenac 50mg               │
+│  Dosage: 1 tablet, twice daily           │
+│  Duration: 5 days                        │
+│  Route: Oral                             │
+│  Linked Dx: Knee osteoarthritis flare    │
+│                                           │
+│  ✓ Checked: no allergy conflict          │
+│  ✓ Available (DRAP registered)           │
+│                                           │
+│  ✗ Excluded: Ibuprofen (allergy)         │
+│                                           │
+│      [ Edit ]      [ Approve & Send ]    │
+└─────────────────────────────────────────┘
+```
+
+## 11. Prescription View (Patient)
+
+```
+┌─────────────────────────────────────────┐
+│  Your Prescription                       │
+├─────────────────────────────────────────┤
+│  Prescribed by Dr. Ahmed Khan            │
+│  MBBS, FCPS Orthopedics                  │
+│  Signed: Aug 24, 2026, 4:32 PM           │
+│                                           │
+│  💊 Diclofenac 50mg                      │
+│     Take 1 tablet, twice daily, 5 days   │
+│                                           │
+│  Why: To reduce inflammation in your     │
+│  knee joint.                             │
+│                                           │
+│      [ ✓ I understand — Acknowledge ]    │
+└─────────────────────────────────────────┘
+```
+
+## 12. Lab Report Upload / Summary
+
+```
+┌─────────────────────────────────────────┐
+│  Lab Reports                             │
+├─────────────────────────────────────────┤
+│  [ 📤 Upload New Report ]                │
+│                                           │
+│  ┌───────────────────────────────────┐  │
+│  │ CBC Report — Aug 20, 2026          │  │
+│  │ Status: ✓ Doctor Approved          │  │
+│  │                                     │  │
+│  │ Summary: Mild elevation in WBC,    │  │
+│  │ consistent with mild inflammation. │  │
+│  │              [ View Full Report ]  │  │
+│  └───────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+```
+
+## 13. Physio Request + Location Share
+
+```
+┌─────────────────────────────────────────┐
+│  Physiotherapist Accepted!               │
+├─────────────────────────────────────────┤
+│                                           │
+│   👤 Physio: Ayesha Tariq                │
+│                                           │
+│   Share your location for the visit?     │
+│                                           │
+│   📍 [  One-time pin — not tracked  ]    │
+│                                           │
+│         [ Share Location ]               │
+│         [ Not Now ]                      │
+│                                           │
+└─────────────────────────────────────────┘
+```
+
+## 14. Physio Post-Visit Feedback Form (Physio side)
+
+```
+┌─────────────────────────────────────────┐
+│  Session Notes — Ali Raza                │
+├─────────────────────────────────────────┤
+│  Exercises performed:                    │
+│  ☑ Quad sets     ☑ Wall slides           │
+│                                           │
+│  Patient response:                       │
+│  ( ) Improved  (•) Same  ( ) Worse       │
+│                                           │
+│  Notes:                                  │
+│  ┌─────────────────────────────────┐    │
+│  │ Tolerated exercises well, mild  │    │
+│  │ discomfort during wall slides.  │    │
+│  └─────────────────────────────────┘    │
+│                                           │
+│      [ Send to Doctor's Thread ]         │
+└─────────────────────────────────────────┘
+```
+
+## 15. X-Ray Upload Screen
+
+```
+┌─────────────────────────────────────────┐
+│  Upload X-Ray                            │
+├─────────────────────────────────────────┤
+│         [  📷 Take/Upload Photo  ]       │
+│                                           │
+│  Checking image quality...               │
+│  ✓ Blur check passed                     │
+│  ✓ Exposure check passed                 │
+│  ✓ Full film in frame                    │
+│                                           │
+│  ⚠ This confirms the image is readable,  │
+│  not that it's clinically sufficient.    │
+│                                           │
+│           [ Send to Doctor ]             │
+└─────────────────────────────────────────┘
+```
+
+## 16. X-Ray Viewer (Doctor)
+
+```
+┌─────────────────────────────────────────┐
+│  X-Ray — Ali Raza, Right Knee            │
+├─────────────────────────────────────────┤
+│                                           │
+│        [   X-ray image display   ]       │
+│                                           │
+│  🔍 Zoom  ↔ Pan  ☀ Brightness  ◐ Contrast │
+│                                           │
+│  [ Can't confirm from image →            │
+│    Refer to in-person appointment ]      │
+└─────────────────────────────────────────┘
+```
+
+## 17. Appointment Booking Screen
+
+```
+┌─────────────────────────────────────────┐
+│  Book Appointment                        │
+├─────────────────────────────────────────┤
+│  Specialty:  [ Orthopedics      ▾ ]     │
+│  Location:   [ Near me          ▾ ]     │
+│                                           │
+│  Dr. Ahmed Khan — Available slots:       │
+│  ┌────────┐┌────────┐┌────────┐         │
+│  │Today   ││Tomorrow││Fri     │         │
+│  │4:00 PM ││10:00 AM││2:30 PM │         │
+│  └────────┘└────────┘└────────┘         │
+│                                           │
+│           [ Confirm Booking ]            │
+└─────────────────────────────────────────┘
+```
+
+## 18. Follow-Up Check-In (24hr, push/in-app)
+
+```
+┌─────────────────────────────────────────┐
+│  How are you feeling?                    │
+├─────────────────────────────────────────┤
+│                                           │
+│  It's been a day since your last visit.  │
+│  How's your knee doing?                  │
+│                                           │
+│    (•) Better    ( ) Same    ( ) Worse   │
+│                                           │
+│  Any new symptoms?                       │
+│  ( ) Yes    (•) No                       │
+│                                           │
+│              [ Submit ]                  │
+│                                           │
+└─────────────────────────────────────────┘
+```
+
+---
+
+Want me to turn a few of these into actual clickable HTML/React mockups (via the Visualizer) instead of ASCII, for your proposal defense slides?

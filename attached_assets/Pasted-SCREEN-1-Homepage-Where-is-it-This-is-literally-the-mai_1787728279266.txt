@@ -1,0 +1,643 @@
+SCREEN 1 — Homepage
+Where is it?
+
+This is literally the main/home screen.
+
+The user opens ShifaKinetix and sees:
+
+"How can we help you today?"
+
+Three options:
+
+Report a Symptom
+Book Appointment
+Continue Care
+
+That is exactly how the document defines the entry screen.
+
+So your Replit homepage should NOT immediately open a chat.
+
+It should start here.
+
+3. If user clicks "Report a Symptom"
+
+Now we enter the new symptom pathway.
+
+SCREEN 2 — 3D Symptom Intake
+HOME
+ ↓
+Report a Symptom
+ ↓
+3D Symptom Intake
+
+This is where the patient selects the painful area on the 3D body.
+
+For example:
+
+Right Knee
+
+They can also specify:
+
+superficial/deep
+radiation
+additional pain point
+
+Then:
+
+Continue
+
+The document explicitly puts the 3D model immediately after Report a Symptom.
+
+4. SCREEN 3 — Red-Flag Questionnaire
+
+After the patient finishes the 3D mapping:
+
+3D Symptom Intake
+       ↓
+Red-Flag Questionnaire
+
+This is not a homepage feature.
+
+It's part of the Report a Symptom flow.
+
+The questions are based on the selected region, e.g. knee.
+
+5. SCREEN 4A / 4B — Severity Gate
+
+After the questionnaire, there are two possible screens.
+
+If RED FLAG:
+Screen 4A
+Red-Flag Questionnaire
+          ↓
+      Severity Gate
+          ↓
+       RED FLAG
+          ↓
+   Screen 4A
+
+The patient sees:
+
+We recommend you see a doctor right away.
+
+Then:
+
+Connect to Doctor Now
+
+That's the red-flag branch.
+
+If SAFE:
+Screen 4B
+Red-Flag Questionnaire
+          ↓
+      Severity Gate
+          ↓
+         SAFE
+          ↓
+      AI Assistant
+
+So Screen 4B is the beginning of the AI chat.
+
+It is not another homepage screen.
+
+6. SCREEN 5 — Exercises & Diet
+
+This is an important one.
+
+Your teammate should know:
+
+Screen 5 is NOT a separate main navigation page.
+
+The document literally says:
+
+"Exercise & Diet Guidance (within chat)"
+
+So it should look something like:
+
+AI CHAT
+
+AI:
+Based on what you've described...
+
+       ↓
+
+[Exercise Recommendations]
+ ┌───────┐ ┌───────┐ ┌───────┐
+ │ Quad  │ │Leg    │ │Wall   │
+ │ Set   │ │Raise  │ │Slides │
+ └───────┘ └───────┘ └───────┘
+
+[Diet Guidance]
+• Ginger
+• Fish
+
+       ↓
+
+Continue chatting...
+
+It is essentially a rich card/section embedded inside the AI conversation.
+
+So don't create:
+
+Home → Exercise page
+
+for this particular screen.
+
+7. SCREEN 6 — Doctor/Physio Matching
+
+After AI interaction, if the patient wants professional care:
+
+AI Chat
+   ↓
+Talk to Doctor / Request Professional
+   ↓
+Matching
+   ↓
+Screen 6
+
+Screen 6 shows the shortlist of doctors/physios.
+
+The exact provider shown depends on the context.
+
+For example:
+
+Doctor
+
+Choose a Doctor
+
+or
+
+Physiotherapist
+
+Choose a Physiotherapist
+
+The document calls this the Doctor/Physio Matching Shortlist.
+
+8. SCREEN 7 — Patient Consultation Thread
+
+Once the patient connects with a doctor:
+
+Doctor Matching
+       ↓
+Doctor Request Accepted
+       ↓
+Consultation Thread
+       ↓
+SCREEN 7
+
+This is where your teammate's earlier point becomes very important.
+
+This is the CENTRAL CARE SCREEN.
+
+The document calls it:
+
+Consultation Thread — Patient View
+
+So this isn't just a chat screen.
+
+It's the patient's ongoing consultation/care workspace.
+
+9. What belongs INSIDE the consultation thread?
+
+This is where I would slightly reinterpret the numbered screens.
+
+The thread can contain:
+
+Main conversation
+
+Chat
+
+Clinical information
+
+3D Body Map
+
+Reports
+
+Imaging
+
+Treatment
+
+Prescription
+
+Exercise Plan
+
+Physio
+
+Monitoring
+
+Follow-Up
+
+So instead of thinking:
+
+Screen 7 = chat
+Screen 9 = separate 3D page
+Screen 12 = separate report page
+Screen 15 = separate X-ray page
+
+think:
+
+              CONSULTATION THREAD
+                      │
+        ┌─────────────┼─────────────┐
+        │             │             │
+       CHAT          3D          REPORTS
+        │             │             │
+        │             │             │
+        ├─────────────┼─────────────┤
+        │             │             │
+     IMAGING     PRESCRIPTION     PHYSIO
+        │
+     FOLLOW-UP
+
+The screens in Claude's document are screen designs for these functions, not necessarily separate top-level app pages.
+
+10. SCREEN 8 — Doctor Consultation Thread
+
+Now we switch roles.
+
+Screen 8 is not another patient screen.
+
+It's:
+
+Doctor Dashboard → Patient → Consultation Thread
+
+The doctor opens a patient's case.
+
+They see:
+
+Patient information
+AI SOAP draft
+Differential Diagnosis
+AI suggested plan
+Edit
+Approve & Send
+
+The document explicitly labels it Consultation Thread — Doctor View.
+
+So:
+
+DOCTOR DASHBOARD
+       ↓
+Patient
+       ↓
+Consultation
+       ↓
+SCREEN 8
+11. SCREEN 9 — Doctor 3D Annotation
+
+This is inside the doctor's consultation/case, not a random standalone feature.
+
+Notice Screen 8 has:
+
+[3D 🦴]
+
+That button logically opens Screen 9.
+
+So:
+
+Doctor Consultation Thread
+          ↓
+       [3D 🦴]
+          ↓
+Screen 9 — Doctor 3D Annotation
+
+The doctor can:
+
+view patient's original point
+add doctor pin
+draw boundary
+select layers
+record voice walkthrough
+
+Then:
+
+Save Annotation
+
+The document specifically distinguishes the patient point from the doctor's annotation layer.
+
+12. SCREEN 10 — Prescription Draft
+
+Again, this is inside the doctor's consultation workflow.
+
+Doctor Consultation
+       ↓
+Prescription
+       ↓
+Screen 10
+
+The doctor sees:
+
+AI Draft — Unreviewed
+
+Then:
+
+Edit
+
+or
+
+Approve & Send
+
+The medicine has already gone through:
+
+safety checks
+allergy check
+DRAP availability
+
+The document shows these explicitly.
+
+13. SCREEN 11 — Patient Prescription
+
+After the doctor approves:
+
+Doctor Prescription
+       ↓
+Approve & Send
+       ↓
+Patient receives prescription
+       ↓
+Screen 11
+
+So Screen 11 is not something the patient accesses before seeing a doctor.
+
+It's the result of the doctor's prescription workflow.
+
+The patient can access it through their consultation/care history.
+
+14. SCREEN 12 — Lab Reports
+
+This one needs a little clarification.
+
+Patient side:
+
+Inside their care/consultation:
+
+Reports
+
+They can:
+
+Upload New Report
+
+↓
+
+System processes it
+
+↓
+
+Doctor reviews it
+
+↓
+
+Doctor approves summary.
+
+Screen 12 shows the patient-facing Lab Reports area and an approved report.
+
+So in the prototype I'd make:
+
+Consultation Thread
+       ↓
+Reports
+       ↓
+Lab Reports
+
+Not:
+
+Home
+ ↓
+Lab Reports
+15. SCREEN 13 — Physio + Location
+
+This is not the beginning of the physiotherapy process.
+
+This screen specifically represents:
+
+Physio Accepted → Location Share
+
+The screen itself says:
+
+Physiotherapist Accepted!
+
+and then:
+
+Share your location for the visit?
+
+So the sequence is:
+
+Consultation / Physio Recommendation
+          ↓
+Physio Matching
+          ↓
+Patient selects Physio
+          ↓
+Physio accepts
+          ↓
+SCREEN 13
+          ↓
+One-time Location Pin
+
+The location is specifically one-time, not live tracking.
+
+16. SCREEN 14 — Physio Post-Visit Feedback
+
+This is a physiotherapist-side screen.
+
+Not patient.
+
+Not doctor initially.
+
+The flow is:
+
+Physio Dashboard
+      ↓
+Patient/Session
+      ↓
+Session Notes
+      ↓
+SCREEN 14
+
+Physio records:
+
+exercises performed
+patient response
+notes
+
+Then:
+
+Send to Doctor's Thread
+
+This is extremely important.
+
+The physio's feedback goes back into the existing doctor's consultation thread, rather than creating some completely separate disconnected record.
+
+17. SCREEN 15 — X-Ray Upload
+
+This is primarily a patient-side action.
+
+The clean flow is:
+
+Patient Consultation
+       ↓
+Imaging
+       ↓
+Upload X-Ray
+       ↓
+Screen 15
+
+Patient:
+
+Take/Upload Photo
+
+Then system checks:
+
+Blur
+Exposure
+Framing
+
+Then:
+
+Send to Doctor
+
+The important thing is that the system doesn't diagnose the X-ray. It only checks whether the image is readable.
+
+18. SCREEN 16 — X-Ray Viewer
+
+After the patient sends the X-ray:
+
+Patient Upload
+      ↓
+Send to Doctor
+      ↓
+Doctor Consultation
+      ↓
+Imaging
+      ↓
+X-Ray Viewer
+      ↓
+SCREEN 16
+
+Doctor gets:
+
+image
+zoom
+pan
+brightness
+contrast
+
+And importantly:
+
+Can't confirm from image → Refer to in-person appointment
+
+So this is doctor-side.
+
+19. SCREEN 17 — Appointment Booking
+
+This is one of the screens that does NOT need an existing consultation.
+
+It belongs to the second homepage entry point.
+
+Remember Home:
+
+Book Appointment
+
+So:
+
+HOME
+ ↓
+BOOK APPOINTMENT
+ ↓
+SCREEN 17
+
+Patient chooses:
+
+Specialty
+Location
+Doctor
+Date/time
+Confirm
+
+This is the direct appointment booking flow.
+
+It does NOT require:
+
+3D intake
+red flags
+AI
+consultation
+
+The updated architecture explicitly separates direct booking from symptom/AI flows.
+
+20. BUT Screen 17 can ALSO be reached from an existing consultation
+
+There is a second way to reach appointment booking.
+
+For example:
+
+Doctor says:
+
+"You need an in-person assessment."
+
+Then:
+
+Consultation Thread
+       ↓
+Appointment Escalation
+       ↓
+Screen 17
+
+So Screen 17 has two entry points:
+
+Entry A
+HOME
+ ↓
+Book Appointment
+ ↓
+Screen 17
+Entry B
+Existing Consultation
+ ↓
+Doctor/System recommends appointment
+ ↓
+Screen 17
+
+That's why appointment booking shouldn't be thought of as belonging exclusively to the homepage.
+
+21. SCREEN 18 — 24-Hour Follow-Up
+
+This one is slightly different from everything else.
+
+It's not necessarily reached by pressing a navigation button.
+
+It's triggered by the system.
+
+For example:
+
+Consultation
+     ↓
+Treatment / Physio / AI Guidance
+     ↓
+24 hours
+     ↓
+Push Notification
+     ↓
+SCREEN 18
+
+Patient receives:
+
+How are you feeling?
+
+Better / Same / Worse.
+
+The document explicitly describes it as:
+
+Follow-Up Check-In (24hr, push/in-app)
+
+After submission:
+
+Follow-Up
+    ↓
+Severity Gate
+   / \
+Safe  Red Flag
+       ↓
+     Doctor
+
+So this is a system-triggered screen, not a permanent homepage screen.

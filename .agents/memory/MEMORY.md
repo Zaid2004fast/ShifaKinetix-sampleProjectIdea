@@ -1,0 +1,1 @@
+- [Prototype build convention](prototype-build-convention.md) — the ShifaKinetix first build prioritizes explorable local-state workflows before backend persistence.

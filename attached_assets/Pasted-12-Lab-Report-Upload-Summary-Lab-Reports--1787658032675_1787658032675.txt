@@ -1,0 +1,107 @@
+12. Lab Report Upload / Summary
+┌─────────────────────────────────────────┐
+│  Lab Reports                             │
+├─────────────────────────────────────────┤
+│  [ 📤 Upload New Report ]                │
+│                                           │
+│  ┌───────────────────────────────────┐  │
+│  │ CBC Report — Aug 20, 2026          │  │
+│  │ Status: ✓ Doctor Approved          │  │
+│  │                                     │  │
+│  │ Summary: Mild elevation in WBC,    │  │
+│  │ consistent with mild inflammation. │  │
+│  │              [ View Full Report ]  │  │
+│  └───────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+13. Physio Request + Location Share
+┌─────────────────────────────────────────┐
+│  Physiotherapist Accepted!               │
+├─────────────────────────────────────────┤
+│                                           │
+│   👤 Physio: Ayesha Tariq                │
+│                                           │
+│   Share your location for the visit?     │
+│                                           │
+│   📍 [  One-time pin — not tracked  ]    │
+│                                           │
+│         [ Share Location ]               │
+│         [ Not Now ]                      │
+│                                           │
+└─────────────────────────────────────────┘
+14. Physio Post-Visit Feedback Form (Physio side)
+┌─────────────────────────────────────────┐
+│  Session Notes — Ali Raza                │
+├─────────────────────────────────────────┤
+│  Exercises performed:                    │
+│  ☑ Quad sets     ☑ Wall slides           │
+│                                           │
+│  Patient response:                       │
+│  ( ) Improved  (•) Same  ( ) Worse       │
+│                                           │
+│  Notes:                                  │
+│  ┌─────────────────────────────────┐    │
+│  │ Tolerated exercises well, mild  │    │
+│  │ discomfort during wall slides.  │    │
+│  └─────────────────────────────────┘    │
+│                                           │
+│      [ Send to Doctor's Thread ]         │
+└─────────────────────────────────────────┘
+15. X-Ray Upload Screen
+┌─────────────────────────────────────────┐
+│  Upload X-Ray                            │
+├─────────────────────────────────────────┤
+│         [  📷 Take/Upload Photo  ]       │
+│                                           │
+│  Checking image quality...               │
+│  ✓ Blur check passed                     │
+│  ✓ Exposure check passed                 │
+│  ✓ Full film in frame                    │
+│                                           │
+│  ⚠ This confirms the image is readable,  │
+│  not that it's clinically sufficient.    │
+│                                           │
+│           [ Send to Doctor ]             │
+└─────────────────────────────────────────┘
+16. X-Ray Viewer (Doctor)
+┌─────────────────────────────────────────┐
+│  X-Ray — Ali Raza, Right Knee            │
+├─────────────────────────────────────────┤
+│                                           │
+│        [   X-ray image display   ]       │
+│                                           │
+│  🔍 Zoom  ↔ Pan  ☀ Brightness  ◐ Contrast │
+│                                           │
+│  [ Can't confirm from image →            │
+│    Refer to in-person appointment ]      │
+└─────────────────────────────────────────┘
+17. Appointment Booking Screen
+┌─────────────────────────────────────────┐
+│  Book Appointment                        │
+├─────────────────────────────────────────┤
+│  Specialty:  [ Orthopedics      ▾ ]     │
+│  Location:   [ Near me          ▾ ]     │
+│                                           │
+│  Dr. Ahmed Khan — Available slots:       │
+│  ┌────────┐┌────────┐┌────────┐         │
+│  │Today   ││Tomorrow││Fri     │         │
+│  │4:00 PM ││10:00 AM││2:30 PM │         │
+│  └────────┘└────────┘└────────┘         │
+│                                           │
+│           [ Confirm Booking ]            │
+└─────────────────────────────────────────┘
+18. Follow-Up Check-In (24hr, push/in-app)
+┌─────────────────────────────────────────┐
+│  How are you feeling?                    │
+├─────────────────────────────────────────┤
+│                                           │
+│  It's been a day since your last visit.  │
+│  How's your knee doing?                  │
+│                                           │
+│    (•) Better    ( ) Same    ( ) Worse   │
+│                                           │
+│  Any new symptoms?                       │
+│  ( ) Yes    (•) No                       │
+│                                           │
+│              [ Submit ]                  │
+│                                           │
+└─────────────────────────────────────────┘

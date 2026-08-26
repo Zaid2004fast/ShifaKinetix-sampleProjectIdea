@@ -1,0 +1,87 @@
+ShifaKinetix — Module Descriptions (v4)
+Incorporates: simplified entry points (direct search is booking/physio-request only, no separate "New Concern" safety-check variant), dual-direction physiotherapy with feedback loop, the 24-hour Follow-Up Agent, the Differential Diagnosis module (doctor-facing only), and regulatory-alignment notes. Core CCP-bearing modules are marked [CORE]; the rest are [SUPPORTING] — this distinction should be stated explicitly at your proposal defense.
+1. Patient Entry & Onboarding Module [SUPPORTING]
+Manages three entry paths:
+•	Report a Symptom — full 3D intake + red-flag questionnaire (primary, most common path); proceeds to AI chat or doctor routing based on the Severity Gate
+•	Book a Doctor/Physio Appointment — pure scheduling (specialty, location, availability, slot selection) via direct search; no symptom reporting, no AI, no thread opened. For physio, this search leads either to a scheduled appointment or to a physio-initiated case (Module 13, Direction B), which carries its own built-in red-flag check before any thread opens
+•	Continue Care / Follow-Up Booking — for existing patients with an established thread/condition; no new safety check required since context already exists
+Covers account creation and profile management.
+Data sources: Internal user/account database only; no external clinical dataset involved.
+2. 3D Symptom Intake Module [SUPPORTING]
+Captures structured symptom data from the segmented 3D Myology model (1,600 mesh parts → ~15–25 clinical regions via rule-based classifier): resolved taxonomy ID/region, exact 3D coordinate, optional depth, optional multi-point radiation path. Highlights only the specific clicked sub-mesh, not the whole region. Output is fully structured, never free text. Reused (not re-collected) by the Consultation Orchestrator, Physiotherapy Module, and Differential Diagnosis Module downstream.
+Data sources: The segmented 3D Myology model/mesh asset; the internally built rule-based mesh-to-clinical-region classifier.
+3. Fixed Red-Flag Intake Module (Phase 1 — Safety-Critical) [CORE]
+A doctor-validated questionnaire, never LLM-generated, never LLM-altered, never skipped. One question template per clinical region. Includes universal questions (trauma, neurological signs, systemic signs, functional loss, rapid progression, deformity/swelling) and region-specific additions. All answers captured with explicit true/false/unknown states, never defaulted to false. Ambiguous answers stored as uncertain and clarified via follow-up.
+Invoked at multiple entry points: the full questionnaire on the "Report a Symptom" path, and on the patient-initiated physio path (Module 13) before a physio thread opens. Guaranteeing the same safety criteria are enforced identically regardless of which entry point the patient used, without duplicating or diverging the rule logic, is a core design problem.
+Data sources: StatPearls (NCBI Bookshelf) as the clinical basis for question content, doctor-validated.
+4. Severity Gate Module (Deterministic Rule Engine) [CORE]
+A rule-based engine, explicitly not an LLM judgment call, evaluating Phase 1 answers against a curated, source-traceable red-flag criteria set. Outputs ACUTE_RED_FLAG (routed straight to a doctor, no AI content shown) or SAFE (proceeds to AI chat). Every rule that fires records the matched facts and source justification. Re-runs as an independent final check before any AI response is finalized.
+Multiply-invoked, not single-pass: runs at (a) initial intake, (b) every subsequent AI-chat message, (c) the patient-initiated physio path, and (d) asynchronously via the 24-hour Follow-Up Agent (Module 19). Designing one consistent rule engine that behaves correctly across live, async, and multi-entry invocation is the project's primary complex computing problem.
+Data sources: StatPearls-derived red-flag criteria, doctor-validated. DDXPlus used only for evaluation, never as a rule source.
+5. AI Chat Clarifying Questions Module (Phase 2 — Non-Critical) [SUPPORTING]
+Only reached after a SAFE verdict. The LLM selects 2–4 questions from a pre-approved, doctor-reviewed question bank per region, interprets free-text answers into structured fields, asks natural follow-ups on ambiguous answers. Never invents questions outside the pool; never makes the safety decision itself.
+Data sources: Doctor-reviewed, pre-approved question bank per clinical region.
+6. AI Triage Chat Module [SUPPORTING]
+Reasons over structured intake + region-scoped RAG retrieval (ICD-10-CM-filtered) to produce a non-diagnostic possible explanation (deliberately not a ranked differential, see Module 9), plus exercises and diet guidance, always disclaimer-tagged. Never prescribes medicine, never shows ranked/scored condition lists. A persistent "Talk to a doctor instead" button allows escalation at any time.
+Data sources: MedRAG/textbooks + MedRAG/statpearls corpora (via pgvector); ICD-10-CM mapping; GBD Pakistan epidemiological priors; Groq-based Urdu translation.
+7. Thread Escalation Module [SUPPORTING]
+Transitions a thread AI_ONLY → AWAITING_DOCTOR, triggered by a red flag (auto-routes) or patient request (shortlist shown). Full history preserved and carried forward. Escalation reason logged. AI stops generating suggestions once escalated. Also used by physio-to-doctor referrals (Module 13) and Follow-Up Agent re-escalations (Module 19), the shared state-transition mechanism reused across every escalation source.
+Data sources: No external dataset, operates on internal thread-state and escalation-log data.
+8. Doctor/Physio Matching Module [SUPPORTING]
+AI-ranked shortlist with patient override; urgent/escalated cases auto-route without requiring patient selection. Underlies both the physio-selectable shortlist (Module 13) and the direct Appointment Booking search (Module 1).
+Data sources: Internal provider directory (specialty, availability, ratings); simplified onboarding process since formal credential verification is out of scope.
+9. Differential Diagnosis Module (Doctor-Facing Only) [CORE]
+Generates a ranked differential diagnosis for the doctor's review, never shown directly to the patient in either the ACUTE_RED_FLAG or SAFE path. Showing ranked, confidence-scored diagnostic output directly to a layperson risks pushing the software from Non-Device Clinical Decision Support into regulated Software-as-a-Medical-Device territory (FDA Section 520(o)(1)(E)). Patient-facing output stays limited to the non-diagnostic explanation in Module 6.
+Pipeline:
+1.	Candidate retrieval — pulls candidate conditions from the RAG corpus, filtered by clinical region and ICD-10-CM mapping, not generated from LLM memory
+2.	Feature-consistency scoring — each candidate's expected clinical feature profile is compared against the patient's structured answers to produce a base ranking
+3.	Danger-override weighting — red-flag-associated conditions (e.g., septic arthritis) stay visible and flagged near the top regardless of raw ranking, following "rule out dangerous first"
+4.	Epidemiological tie-breaking — GBD Pakistan prior-prevalence data resolves close ties toward locally common conditions
+5.	LLM's role is explanatory only — writes up the already-ranked list; cannot reorder, add, or remove candidates
+Every ranked item carries provenance: matched facts, source, and rank rationale. Feeds into the Consultation Orchestrator's SOAP "Assessment" section (Module 10) or attaches to the thread when a case routes directly to a doctor.
+Data sources: Same MedRAG/statpearls corpora as Module 6; GBD Pakistan epidemiological priors; DDXPlus for evaluation.
+10. Consultation Thread Module (Consultation Orchestrator) [SUPPORTING]
+One persistent thread per patient-doctor pair, the central hub for chat, labs, follow-ups, and physio status. AI drafts only initial and follow-up-trigger responses in SOAP format (incorporating Module 9's differential into the Assessment section), always doctor-reviewed/approved before the patient sees them. Doctor 3D annotation tools render as a layer distinguishable from the patient's original selected point.
+Data sources: Same 3D Myology model as Module 2; same MedRAG corpora as Modules 6 and 9.
+11. Medicine Mapping & Prescription Module [SUPPORTING]
+Deterministic-first pipeline: patient conversation → clinical extraction → normalized condition → candidate medicines (curated mapping tables) → safety engine (allergies, interactions, contraindications) → DRAP availability filter → RAG evidence retrieval (explanation only) → constrained LLM draft ("AI Draft — Unreviewed") → doctor approval → immutable prescription. Every excluded candidate logged with a reason.
+Data sources: medicines.csv (availability layer, requires RxNorm/ATC normalization); separately curated condition-to-medicine clinical mapping table; a medicine is valid only if present in both.
+12. Lab Reports Module [SUPPORTING]
+OCR pipeline (Tesseract → LlamaParse → Gemini fallback) → Report/Follow-up Agent generates AI summary → doctor reviews and gates it → patient sees only the approved summary, inside the thread.
+Data sources: Patient-uploaded lab files only; OCR tools are processing engines, not data sources.
+13. Physiotherapy Module (Dual-Direction) [SUPPORTING, structurally interdependent with CORE modules]
+Direction A — Doctor-dispatched: Doctor recommends physio from an active thread → system surfaces a location- and region-matched shortlist (Module 8) → patient selects and requests → physio accepts → one-time location pin shared at acceptance (Module 16) → in-person visit → physio submits structured post-visit feedback (session notes, exercises performed, patient response, outcome) → posted back into the same patient-doctor Consultation Thread (Module 10).
+Direction B — Patient-initiated: Patient requests a physio directly → still passes through the same 3D intake + red-flag questionnaire (Modules 2–4) — the Severity Gate applies; red-flag cases route to a doctor before ever reaching a physio. If cleared, the physio gets their own thread with full 3D-model access and can assess/treat directly.
+Either direction: if the physio determines a case is clinically critical or outside physio scope, they refer to a doctor through the same Thread Escalation mechanism (Module 7).
+Data sources: Same 3D Myology model and red-flag/Severity Gate logic as Modules 2–4; internal provider directory (Module 8).
+14. Exercise & Diet Guidance Module [SUPPORTING]
+Exercises: matched to clinical-region taxonomy, AI-suggested or doctor-prescribed; status/duration tracking for patient adherence. Tier A (general/mobility) from free-exercise-db; Tier B (condition-specific) from Physiopedia, license-verified per image. Confirmed as supporting infrastructure, not a CCP.
+Diet guidance: qualitative only, LLM-localized to Pakistani food terms, scoped to inflammatory/arthritic conditions, no numeric targets surfaced to the patient.
+Data sources — exercises: free-exercise-db, Physiopedia (CC-BY/CC-BY-SA/PD only).
+Data sources — diet: arthritis.org, cross-checked against Mayo Clinic/NHS; MDPI Healthcare (2026) review; NIH ODS fact sheets; ISSN position stands; Dietary Guidelines for Americans; USDA FoodData Central for Pakistani food-equivalent nutrient plausibility.
+15. Imaging Module — X-Ray Viewing (Two-Tier Design) [SUPPORTING]
+AI-based interpretation (Jivi-RadX-v1) dropped from scope. Option A — Standard Photo Viewer (primary): OpenCV-based quality checks (blur, exposure, framing), lossless storage, interactive doctor viewer; a legibility check only, not clinical sufficiency. Option B — DICOM Viewer (stretch goal): Cornerstone.js/dwv.js, windowing/leveling, contingent on confirmed DICOM availability. Both tiers remain doctor-reviewed-draft only.
+Data sources: Patient-uploaded X-ray photos/DICOM files only; OpenCV, Cornerstone.js/dwv.js as processing tools; Goost et al. (2012, PLOS ONE) supports design rationale only.
+16. Location Sharing Module [SUPPORTING]
+One-time pin share, triggered specifically at physio-acceptance (Module 13) or for in-person appointment visits, never continuous/live tracking.
+Data sources: Device-provided location/map coordinates at the moment of sharing.
+17. Appointment Booking Module [SUPPORTING]
+Direct scheduling of doctor/physio appointments by specialty, location, and availability, no symptom reporting, no AI triage, no consultation thread opened. Structurally separate from Module 10; clinical assessment happens in person. No red-flag gate or escalation logic applies here.
+Data sources: Internal provider directory (Module 8), queried directly by the patient.
+18. Appointment Escalation Module [SUPPORTING]
+Deliberate step-up from async consultation to in-person appointment when async care is insufficient (distinct from Module 17, which is direct booking without any prior consultation).
+Data sources: Internal provider directory and scheduling data.
+19. Follow-Up Agent (Cross-Cutting, Time-Triggered) [CORE]
+Runs a structured, scheduled check-in (typically 24 hours after AI-chat guidance, doctor consultation, or physio treatment) asking a small set of structured questions, improved/unchanged/worse, plus condition-relevant follow-ups. Responses are re-evaluated through the same deterministic Severity Gate (Module 4), worsening or new red-flag-consistent signs auto-escalate via Module 7. Non-concerning responses are logged into the relevant thread for doctor visibility.
+Not a separate rules system, it's the Severity Gate's logic applied to a new, asynchronous, delayed re-entry context.
+Data sources: No external dataset, operates on the same structured red-flag criteria as Module 4.
+20. Backend Multi-Agent Orchestration Module [SUPPORTING infrastructure for CORE modules]
+•	Agents: Triage Agent → Consultation Orchestrator → Differential Diagnosis Agent → Report/Follow-up Agent → Follow-Up (24h) Agent + Physio Dispatch
+•	Thread state machine: AI_ONLY → AWAITING_DOCTOR → ACTIVE_CONSULTATION, full history preserved across all escalation sources (red flag, patient request, physio referral, follow-up re-escalation)
+•	Classification: 3D-segment → clinical-region classifier; 3D-region → ICD-10-CM mapping artifact
+•	RAG layer: three-layer ICD-grounded keyword filter with ambiguous-term disambiguation
+Data sources: MedRAG/textbooks + MedRAG/statpearls (via pgvector); DDXPlus for evaluation only; GBD Pakistan priors; DRAP filtering; curated local hospital/lab registry; Groq-based Urdu translation.
+21. Regulatory & Governance Alignment Layer (Cross-Cutting) [Supports CORE claim]
+Every AI-generated clinical output passes through either the deterministic rule gate (Severity Gate, Module 4) or an explicit doctor sign-off gate (prescriptions, lab summaries, imaging, differential diagnosis), the sole exception being non-critical, non-diagnostic AI exercise/diet/explanation output, released direct-to-patient since it's scoped low-risk, reversible, and disclaimer-tagged.
+Tested against the four FDA Non-Device Clinical Decision Support criteria: (1) no raw image/signal processing for automated diagnosis, X-ray viewing is legibility-check only; (2) output limited to displaying/analyzing validated-source information; (3) support-not-replace clinical judgment, the Differential Diagnosis module and all prescription drafts are strictly doctor-mediated; (4) independent reviewability, every rule firing and ranked differential item carries provenance.
+Data sources: None directly, a design/policy layer governing release conditions for all other modules.
