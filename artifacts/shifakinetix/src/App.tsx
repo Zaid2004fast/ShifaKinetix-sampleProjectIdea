@@ -11,7 +11,8 @@ import {
   FileCheck2, FileText, HeartPulse, Image, Info, LayoutDashboard, LockKeyhole,
   MessageSquare, MoreHorizontal, Move3d, PanelsTopLeft, Pill, Play, Plus,
   RefreshCw, Search, Send, Settings2, ShieldCheck, Sparkles, Stethoscope,
-  SunMedium, UserRound, UsersRound, Video, WalletCards, X, Zap
+  SunMedium, UserRound, UsersRound, Video, WalletCards, X, Zap, ShieldAlert,
+  Compass, Eye, CheckSquare, Layers, UploadCloud, HelpCircle
 } from 'lucide-react';
 
 const queryClient = new QueryClient();
@@ -21,43 +22,102 @@ type IconType = ComponentType<{
   className?: string;
   strokeWidth?: number;
 }>;
+
+type MuscleCandidate = {
+  name: string;
+  latinName: string;
+  depth: 'Superficial' | 'Intermediate' | 'Deep';
+  confidence: number;
+  matchCriteria: string[];
+};
+
+type LabReportItem = {
+  id: string;
+  name: string;
+  fileName: string;
+  uploadDate: string;
+  summary: string;
+  status: 'Pending Doctor Review' | 'Approved by Doctor';
+};
+
 type ConsultationState = {
   region: string;
   taxonomy: string;
   point: string;
-  safetyAnswers: Record<string, string>;
+  view: 'anterior' | 'posterior';
+  mode: 'A' | 'B';
+  depth: 'Superficial' | 'Deep';
+  candidateMuscles: MuscleCandidate[];
+  muscleSpecificAnswers: Record<string, string>;
+  deepeningAnswers: Record<string, string>;
+  secondRedFlagAnswers: Record<string, string>;
+  dietState: 'AI_SUGGESTED' | 'PATIENT_ACCEPTED' | 'SENT_FOR_REVIEW' | 'DOCTOR_APPROVED';
+  reportSentToDoctor: boolean;
+  followUpStatus: 'stable' | 'improving' | 'worse' | 'pending';
+  followUpNote: string;
+  escalatedToAppointment: boolean;
+  labReports: LabReportItem[];
 };
 
 const defaultConsultation: ConsultationState = {
-  region: 'Lower back',
+  region: 'Lower Back (Lumbar)',
   taxonomy: 'MSK.BACK.LOWER',
-  point: 'L4 · 48, 42',
-  safetyAnswers: {
-    'Sudden loss of strength or feeling in both legs?': 'no',
-    'New loss of bladder or bowel control?': 'no',
-    'A fall, impact, or other significant injury?': 'no',
-    'Fever, chills, or feeling unusually unwell?': 'no',
+  point: 'L4-L5 Lumbar Spine · 74%, 46%',
+  view: 'posterior',
+  mode: 'A',
+  depth: 'Deep',
+  candidateMuscles: [
+    { name: 'Erector Spinae', latinName: 'Longissimus thoracis', depth: 'Intermediate', confidence: 91, matchCriteria: ['Spinal loading tenderness', 'Pain upon extension'] },
+    { name: 'Quadratus Lumborum', latinName: 'M. quadratus lumborum', depth: 'Deep', confidence: 82, matchCriteria: ['Lateral pelvic referral', 'Pain on lateral flexion'] },
+    { name: 'Multifidus', latinName: 'Mm. multifidi lumborum', depth: 'Deep', confidence: 68, matchCriteria: ['Segmental vertebral load tenderness'] }
+  ],
+  muscleSpecificAnswers: {
+    'Does the lower back ache radiate down below the knee into your calf or foot?': 'no',
+    'Is there any numbness or tingling in your groin or saddle area?': 'no',
+    'Is the pain relieved when resting in a curled-up or bent-forward position?': 'yes'
   },
+  deepeningAnswers: {
+    'Duration': '3 to 5 days',
+    'Aggravating factor': 'Prolonged sitting & standing up from low chairs',
+    'Relieving factor': 'Gentle walking and heat pack'
+  },
+  secondRedFlagAnswers: {
+    'Did you develop sudden unexplained muscle twitching or weakness?': 'no',
+    'Are you experiencing sudden fever, night sweats or severe chills?': 'no'
+  },
+  dietState: 'AI_SUGGESTED',
+  reportSentToDoctor: true,
+  followUpStatus: 'improving',
+  followUpNote: '24-hour check: stiffness decreased after morning gentle pelvic tilts.',
+  escalatedToAppointment: false,
+  labReports: [
+    {
+      id: 'LAB-001',
+      name: 'Lumbosacral X-Ray Report',
+      fileName: 'lumbar_xray_report.pdf',
+      uploadDate: 'Today, 10:20 AM',
+      summary: 'Mild L4-L5 disc space narrowing without acute bony fracture or spondylolisthesis.',
+      status: 'Approved by Doctor'
+    }
+  ]
 };
 
 const navByRole: Record<Role, { label: string; href: string; icon: IconType }[]> = {
   patient: [
     { label: 'Home', href: '/', icon: LayoutDashboard },
-    { label: 'My care', href: '/thread', icon: MessageSquare },
+    { label: 'Report Symptom', href: '/intake', icon: AlertCircle },
+    { label: 'My Care & Chat', href: '/thread', icon: MessageSquare },
+    { label: '24h Follow-up', href: '/follow-up', icon: RefreshCw },
     { label: 'Appointments', href: '/booking', icon: CalendarDays },
-    { label: 'Profile', href: '/profile', icon: UserRound },
   ],
   doctor: [
-    { label: 'Review queue', href: '/doctor', icon: LayoutDashboard },
-    { label: 'Consultations', href: '/thread', icon: MessageSquare },
+    { label: 'Doctor Dashboard', href: '/doctor', icon: LayoutDashboard },
+    { label: 'Consultation Thread', href: '/thread', icon: MessageSquare },
     { label: 'Verification', href: '/verification', icon: BadgeCheck },
-    { label: 'Settings', href: '/profile', icon: Settings2 },
   ],
   physio: [
-    { label: 'Care board', href: '/physio', icon: LayoutDashboard },
-    { label: 'Patient sessions', href: '/thread', icon: UsersRound },
-    { label: 'Verification', href: '/verification', icon: BadgeCheck },
-    { label: 'Settings', href: '/profile', icon: Settings2 },
+    { label: 'Physio Care Board', href: '/physio', icon: LayoutDashboard },
+    { label: 'Sessions & Feedback', href: '/thread', icon: UsersRound },
   ],
 };
 
@@ -69,7 +129,7 @@ function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'ne
     coral: 'bg-destructive/10 text-destructive',
     navy: 'bg-sidebar/10 text-sidebar',
   };
-  return <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold tracking-[.04em] ${tones[tone]}`}>{children}</span>;
+  return <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${tones[tone]}`}>{children}</span>;
 }
 
 function Button({ children, onClick, variant = 'primary', icon: Icon, disabled = false, className = '', type = 'button', testId }: {
@@ -77,409 +137,2334 @@ function Button({ children, onClick, variant = 'primary', icon: Icon, disabled =
 }) {
   const styles = {
     primary: 'bg-primary text-primary-foreground hover:brightness-105 shadow-sm',
-    secondary: 'bg-card text-foreground border border-border hover:bg-muted',
+    secondary: 'bg-card text-foreground border border-border hover:bg-muted/70',
     ghost: 'text-muted-foreground hover:bg-muted hover:text-foreground',
     danger: 'bg-destructive text-destructive-foreground hover:brightness-105',
     dark: 'bg-sidebar text-sidebar-foreground hover:bg-sidebar/90',
   };
-  return <button type={type} disabled={disabled} onClick={onClick} data-testid={testId} className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-bold transition-all duration-200 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50 ${styles[variant]} ${className}`}>
-    {Icon && <Icon size={16} strokeWidth={2.3} />}{children}
+  return <button type={type} disabled={disabled} onClick={onClick} data-testid={testId} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold transition-all duration-150 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50 ${styles[variant]} ${className}`}>
+    {Icon && <Icon size={18} strokeWidth={2.3} />}{children}
   </button>;
 }
 
 function Panel({ children, className = '', accent = false }: { children: ReactNode; className?: string; accent?: boolean }) {
-  return <section className={`rounded-2xl border bg-card shadow-clinic ${accent ? 'border-primary/25' : 'border-card-border'} ${className}`}>{children}</section>;
+  return <section className={`rounded-2xl border bg-card p-6 md:p-8 shadow-clinic ${accent ? 'border-primary/30 ring-1 ring-primary/10' : 'border-card-border'} ${className}`}>{children}</section>;
 }
 
 function SectionLabel({ children }: { children: ReactNode }) {
-  return <div className="mb-3 flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[.16em] text-muted-foreground">{children}</div>;
+  return <div className="mb-2.5 flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-[.14em] text-primary">{children}</div>;
 }
 
 function StatusDot({ color = 'teal' }: { color?: 'teal' | 'coral' | 'lime' }) {
   const c = { teal: 'bg-primary', coral: 'bg-destructive', lime: 'bg-[#9aa92c]' };
-  return <span className={`pulse-dot inline-block h-2 w-2 rounded-full ${c[color]}`} />;
+  return <span className={`pulse-dot inline-block h-2.5 w-2.5 rounded-full ${c[color]}`} />;
 }
 
 function Shell({ role, setRole, children }: { role: Role; setRole: (role: Role) => void; children: ReactNode }) {
   const [location, setLocation] = useLocation();
   const items = navByRole[role];
-  const roleNames = { patient: 'Patient view', doctor: 'Doctor view', physio: 'Physiotherapist view' };
   return <div className="min-h-[100dvh] bg-background">
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[254px] flex-col bg-sidebar px-4 py-5 text-sidebar-foreground lg:flex">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[260px] flex-col bg-sidebar px-4 py-6 text-sidebar-foreground lg:flex">
       <div className="mb-8 flex items-center gap-3 px-3">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground"><Activity size={22} strokeWidth={2.7} /></div>
-        <div><div className="text-[17px] font-bold tracking-[-.04em]">Shifa<span className="text-sidebar-primary">Kinetix</span></div><div className="font-mono text-[9px] uppercase tracking-[.2em] opacity-55">care command center</div></div>
+        <div className="grid h-11 w-11 place-items-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"><Activity size={24} strokeWidth={2.5} /></div>
+        <div>
+          <div className="text-lg font-bold tracking-tight">Shifa<span className="text-sidebar-primary">Kinetix</span></div>
+          <div className="font-mono text-[9px] uppercase tracking-[.2em] opacity-60">Care Platform</div>
+        </div>
       </div>
-      <div className="mb-7 rounded-xl border border-sidebar-border bg-sidebar-accent/60 p-3">
-        <div className="mb-2 flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-[.14em] opacity-65">Demo role</span><Zap size={13} className="text-sidebar-primary" /></div>
-        <select data-testid="select-demo-role" value={role} onChange={e => { const next = e.target.value as Role; setRole(next); setLocation(next === 'patient' ? '/' : next === 'doctor' ? '/doctor' : '/physio'); }} className="w-full cursor-pointer appearance-none bg-transparent text-sm font-bold outline-none">
+      <div className="mb-6 rounded-xl border border-sidebar-border bg-sidebar-accent/50 p-3.5">
+        <div className="mb-2 flex items-center justify-between"><span className="font-mono text-[10px] uppercase tracking-[.14em] opacity-70">Demo User Role</span><Zap size={14} className="text-sidebar-primary" /></div>
+        <select data-testid="select-demo-role" value={role} onChange={e => { const next = e.target.value as Role; setRole(next); setLocation(next === 'patient' ? '/' : next === 'doctor' ? '/doctor' : '/physio'); }} className="w-full cursor-pointer rounded-lg bg-sidebar-accent px-2.5 py-1.5 text-sm font-semibold outline-none">
           <option className="bg-sidebar text-white" value="patient">Patient · Aisha Rahman</option>
           <option className="bg-sidebar text-white" value="doctor">Doctor · Dr. Maya Chen</option>
           <option className="bg-sidebar text-white" value="physio">Physio · Leo Martins</option>
         </select>
       </div>
-      <nav className="space-y-1">
+      <nav className="space-y-1.5">
         {items.map(item => {
           const Icon = item.icon;
           const active = location === item.href || (item.href !== '/' && location.startsWith(item.href));
-          return <button key={item.href} data-testid={`nav-${item.label.toLowerCase().replaceAll(' ', '-')}`} onClick={() => setLocation(item.href)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition-colors ${active ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`}><Icon size={18} />{item.label}</button>;
+          return <button key={item.href} data-testid={`nav-${item.label.toLowerCase().replaceAll(' ', '-')}`} onClick={() => setLocation(item.href)} className={`flex w-full items-center gap-3.5 rounded-xl px-4 py-3 text-left text-sm font-semibold transition-colors ${active ? 'bg-sidebar-primary text-sidebar-primary-foreground font-bold shadow-sm' : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`}><Icon size={19} />{item.label}</button>;
         })}
       </nav>
       <div className="mt-auto">
-        <div className="mb-4 rounded-xl border border-sidebar-border bg-sidebar-accent/50 p-3.5">
-          <div className="mb-2 flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-[.12em] opacity-65">Care integrity</span><ShieldCheck size={15} className="text-sidebar-primary" /></div>
-          <p className="text-xs leading-relaxed opacity-75">Safety gates are active on every new symptom report.</p>
+        <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/40 p-3.5">
+          <div className="flex items-center gap-2 text-xs font-bold text-sidebar-primary">
+            <ShieldCheck size={16} /> Clinical Red-Flag Engine
+          </div>
+          <p className="mt-1 text-[11px] leading-relaxed opacity-75">All symptoms screened safely before doctor routing.</p>
         </div>
-        <button data-testid="button-profile" onClick={() => setLocation('/profile')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-sidebar-accent">
-          <div className="grid h-9 w-9 place-items-center rounded-full bg-sidebar-primary font-bold text-sidebar-primary-foreground">{role === 'patient' ? 'AR' : role === 'doctor' ? 'MC' : 'LM'}</div>
-          <div className="min-w-0"><div className="truncate text-sm font-bold">{role === 'patient' ? 'Aisha Rahman' : role === 'doctor' ? 'Dr. Maya Chen' : 'Leo Martins'}</div><div className="truncate text-[11px] opacity-55">{roleNames[role]}</div></div>
-          <ChevronDown size={15} className="ml-auto opacity-50" />
-        </button>
       </div>
     </aside>
-    <div className="lg:pl-[254px]">
-      <header className="sticky top-0 z-20 flex h-[72px] items-center justify-between border-b border-border/75 bg-background/90 px-5 backdrop-blur-md md:px-8">
-        <div className="flex items-center gap-3 lg:hidden"><div className="grid h-9 w-9 place-items-center rounded-lg bg-sidebar text-sidebar-primary"><Activity size={19} /></div><span className="font-bold">Shifa<span className="text-primary">Kinetix</span></span></div>
-        <div className="hidden items-center gap-2 text-xs text-muted-foreground lg:flex"><span>Workspace</span><span>/</span><span className="font-bold capitalize text-foreground">{role} care lane</span></div>
+    <div className="lg:pl-[260px]">
+      <header className="sticky top-0 z-20 flex h-[72px] items-center justify-between border-b border-border/80 bg-background/95 px-5 backdrop-blur-md md:px-8">
+        <div className="flex items-center gap-3 lg:hidden"><div className="grid h-9 w-9 place-items-center rounded-lg bg-sidebar text-sidebar-primary"><Activity size={20} /></div><span className="font-bold text-base">Shifa<span className="text-primary">Kinetix</span></span></div>
+        <div className="hidden items-center gap-2 text-sm text-muted-foreground lg:flex"><span>Portal</span><span>/</span><span className="font-bold capitalize text-foreground">{role} View</span></div>
         <div className="ml-auto flex items-center gap-3">
-          <div className="hidden items-center gap-2 rounded-full border border-border bg-card px-3 py-2 text-xs text-muted-foreground md:flex"><Search size={14} /><span>Search records</span><kbd className="ml-3 rounded bg-muted px-1.5 py-0.5 font-mono text-[9px]">/</kbd></div>
-          <button data-testid="button-notifications" onClick={() => setLocation('/profile')} className="relative grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground"><Bell size={17} /><span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-destructive" /></button>
-          <div className="hidden rounded-full bg-accent px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wide text-accent-foreground md:block">Protected session</div>
+          <div className="rounded-full bg-accent/70 px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wide text-accent-foreground">
+            Clear Care Navigation
+          </div>
         </div>
       </header>
-      <main className="mx-auto max-w-[1440px] px-5 py-7 md:px-8 md:py-9">{children}</main>
+      <main className="mx-auto max-w-[1240px] px-5 py-8 md:px-8 md:py-10">{children}</main>
     </div>
   </div>;
 }
 
 function PageHeader({ eyebrow, title, detail, action }: { eyebrow: string; title: ReactNode; detail: string; action?: ReactNode }) {
-  return <div className="mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end">
-    <div><div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[.18em] text-primary">{eyebrow}</div><h1 className="text-balance text-3xl font-bold tracking-[-.055em] text-foreground md:text-[42px]">{title}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{detail}</p></div>
-    {action}
+  return <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+    <div>
+      <div className="mb-1.5 font-mono text-xs font-bold uppercase tracking-[.18em] text-primary">{eyebrow}</div>
+      <h1 className="text-balance text-2xl font-bold tracking-tight text-foreground sm:text-3xl md:text-4xl">{title}</h1>
+      <p className="mt-2 max-w-2xl text-base leading-relaxed text-muted-foreground">{detail}</p>
+    </div>
+    {action && <div className="shrink-0">{action}</div>}
   </div>;
 }
 
 function Metric({ label, value, note, icon: Icon, tone = 'teal' }: { label: string; value: string; note: string; icon: IconType; tone?: 'teal' | 'coral' | 'lime' }) {
-  return <Panel className="p-5"><div className="mb-6 flex items-start justify-between"><span className="font-mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">{label}</span><div className={`grid h-9 w-9 place-items-center rounded-lg ${tone === 'coral' ? 'bg-destructive/10 text-destructive' : tone === 'lime' ? 'bg-accent text-accent-foreground' : 'bg-primary/10 text-primary'}`}><Icon size={17} /></div></div><div className="text-3xl font-bold tracking-[-.06em]">{value}</div><div className="mt-2 text-xs text-muted-foreground">{note}</div></Panel>;
-}
-
-function ExerciseDietGuidance() {
-  const [started, setStarted] = useState(false);
-  return <Panel className="p-6" accent><div className="flex items-start justify-between gap-3"><div><SectionLabel><Activity size={13} /> Recommended for you</SectionLabel><h2 className="text-xl font-bold">Gentle movement + food guidance</h2></div><Badge tone={started ? 'teal' : 'lime'}>{started ? 'Started' : 'Advisory'}</Badge></div><p className="mt-2 text-sm leading-6 text-muted-foreground">General guidance only. Stop if symptoms sharpen and bring changes back to the consultation thread.</p><div className="mt-5"><p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[.12em] text-muted-foreground"><Activity size={14} className="text-primary" /> Exercises</p><div className="grid gap-3 sm:grid-cols-3">{[['Quad set', '2 × 8 gentle holds'], ['Straight-leg raise', '2 × 6 each side'], ['Wall slides', '1 × 8 controlled reps']].map(([name, dose]) => <div className="rounded-xl border border-border bg-card p-3" key={name}><div className="flex h-20 items-center justify-center rounded-lg bg-muted text-primary"><Activity size={23} /></div><p className="mt-3 text-sm font-bold">{name}</p><p className="mt-1 text-[10px] text-muted-foreground">{dose}</p></div>)}</div></div><div className="mt-5 border-t border-border pt-5"><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.12em] text-muted-foreground"><HeartPulse size={14} className="text-primary" /> Diet guidance</p><p className="mt-2 text-xs text-muted-foreground">Foods that may help support an anti-inflammatory pattern:</p><div className="mt-3 grid gap-2 sm:grid-cols-2"><div className="rounded-lg bg-accent/45 p-3 text-xs"><strong>Adrak (ginger)</strong><span className="ml-1 text-muted-foreground">— anti-inflammatory</span></div><div className="rounded-lg bg-accent/45 p-3 text-xs"><strong>Machli (fish)</strong><span className="ml-1 text-muted-foreground">— omega-3 source</span></div></div></div><Button className="mt-5" variant={started ? 'ghost' : 'secondary'} onClick={() => setStarted(!started)} icon={started ? Check : Play} testId="button-mark-guidance-started">{started ? 'Guidance marked as started' : 'Mark as started'}</Button></Panel>;
-}
-
-function ProviderShortlist({ setLocation }: { setLocation: (path: string) => void }) {
-  const [requested, setRequested] = useState<string | null>(null);
-  const providers = [['ahmed', 'Dr. Ahmed Khan', 'Orthopedic surgeon', '4.8', '2.3 km away', 'AK'], ['sara', 'Dr. Sara Malik', 'MSK specialist', '4.6', '4.1 km away', 'SM'], ['ayesha', 'Ayesha Tariq', 'Physiotherapist', '4.9', '3.0 km away', 'AT']];
-  return <Panel className="p-6"><div className="flex items-start justify-between gap-3"><div><SectionLabel><UsersRound size={13} /> Care matching</SectionLabel><h2 className="text-xl font-bold">Choose a doctor or physio</h2></div><Button variant="ghost" className="px-2 text-primary" onClick={() => setLocation('/booking')} icon={ArrowRight} testId="button-view-all-providers">View booking</Button></div><p className="mt-2 text-sm leading-6 text-muted-foreground">Shortlisted verified providers can join this same consultation thread after you request them.</p><div className="mt-5 space-y-3">{providers.map(([id, name, specialty, rating, distance, initials]) => <div className="flex items-center gap-3 rounded-xl border border-border p-3" key={id}><div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">{initials}</div><div className="min-w-0 flex-1"><p className="text-sm font-bold">{name}</p><p className="mt-1 text-xs text-muted-foreground">{specialty}</p><p className="mt-1 font-mono text-[10px] text-primary">★ {rating} · {distance}</p></div><Button variant={requested === id ? 'ghost' : 'secondary'} className="px-3 text-xs" onClick={() => setRequested(requested === id ? null : id)} icon={requested === id ? Check : ArrowRight} testId={`button-request-provider-${id}`}>{requested === id ? 'Requested' : 'Request'}</Button></div>)}</div></Panel>;
-}
-
-function PatientPrescriptionView() {
-  const [acknowledged, setAcknowledged] = useState(false);
-  return <Panel className="p-6"><div className="flex items-start justify-between gap-3"><SectionLabel><Pill size={13} /> Patient view</SectionLabel><Badge tone={acknowledged ? 'teal' : 'lime'}>{acknowledged ? 'Acknowledged' : 'Doctor signed'}</Badge></div><h2 className="text-xl font-bold">Your prescription</h2><p className="mt-1 text-xs text-muted-foreground">Prescribed by Dr. Maya Chen · MBBS, FCPS Orthopedics · Signed 24 Aug 2026, 4:32 PM</p><div className="mt-5 rounded-xl border border-primary/25 bg-primary/5 p-4"><div className="flex gap-3"><div className="grid h-10 w-10 place-items-center rounded-lg bg-primary text-primary-foreground"><Pill size={18} /></div><div><p className="font-bold">Diclofenac 50mg</p><p className="mt-1 text-sm text-muted-foreground">Take 1 tablet, twice daily, for 5 days · Oral</p><p className="mt-3 text-xs leading-5 text-muted-foreground"><strong className="text-foreground">Why:</strong> To reduce inflammation in your reported region.</p></div></div></div><Button className="mt-5" variant={acknowledged ? 'ghost' : 'secondary'} onClick={() => setAcknowledged(!acknowledged)} icon={acknowledged ? Check : ClipboardCheck} testId="button-acknowledge-prescription">{acknowledged ? 'Prescription acknowledged' : 'I understand — acknowledge'}</Button></Panel>;
-}
-
-function LabReportsPanel() {
-  const [uploaded, setUploaded] = useState(false);
-  const [opened, setOpened] = useState(false);
-  return <Panel className="p-6"><div className="flex items-start justify-between gap-3"><div><SectionLabel><FileText size={13} /> Shared documents</SectionLabel><h2 className="text-xl font-bold">Lab reports</h2></div><Button variant="secondary" className="px-3 text-xs" onClick={() => setUploaded(true)} icon={Plus} testId="button-upload-lab-report">{uploaded ? 'Report added' : 'Upload new report'}</Button></div><div className="mt-5 rounded-xl border border-border p-4"><div className="flex items-start gap-3"><div className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 text-primary"><FileCheck2 size={16} /></div><div className="flex-1"><p className="text-sm font-bold">{uploaded ? 'New report · awaiting review' : 'CBC Report · Aug 20, 2026'}</p><p className="mt-1 text-xs text-primary">{uploaded ? 'Pending doctor approval' : '✓ Doctor approved'}</p>{!uploaded && <p className="mt-3 text-xs leading-5 text-muted-foreground">Summary: Mild elevation in WBC, consistent with mild inflammation.</p>}</div><Button variant="ghost" className="px-2 text-xs" onClick={() => setOpened(!opened)} icon={opened ? X : ArrowRight} testId="button-view-lab-report">{opened ? 'Close' : 'View full report'}</Button></div>{opened && <div className="mt-4 rounded-lg bg-muted p-3 text-xs leading-5 text-muted-foreground">The full report remains attached to this consultation. Doctor approval status is visible to the care team.</div>}</div></Panel>;
-}
-
-function LocationSharePanel() {
-  const [shared, setShared] = useState(false);
-  return <Panel className="p-6"><div className="flex items-start gap-3"><div className="grid h-10 w-10 place-items-center rounded-lg bg-accent text-accent-foreground"><Activity size={18} /></div><div><SectionLabel><MapPinIcon size={13} /> Physio visit</SectionLabel><h2 className="text-xl font-bold">Physiotherapist accepted</h2><p className="mt-1 text-sm text-muted-foreground">Ayesha Tariq is ready for the next visit.</p></div></div><div className="mt-5 rounded-xl border border-border p-4"><p className="text-sm font-bold">Share your location for the visit?</p><p className="mt-2 text-xs leading-5 text-muted-foreground">One-time pin only — your location is not tracked continuously.</p></div><div className="mt-4 flex gap-2"><Button onClick={() => setShared(true)} variant={shared ? 'ghost' : 'primary'} icon={shared ? Check : MapPinIcon} testId="button-share-location">{shared ? 'Location shared' : 'Share location'}</Button>{!shared && <Button variant="secondary" testId="button-not-now-location">Not now</Button>}</div></Panel>;
-}
-
-function MapPinIcon(props: { size?: number; className?: string }) {
-  return <span className={props.className}><span className="text-lg">⌖</span></span>;
-}
-
-function DoctorClinicalReview({ consultation }: { consultation: ConsultationState }) {
-  const [approved, setApproved] = useState(false);
-  const [editing, setEditing] = useState(false);
-  return <Panel className="p-6"><div className="flex items-start justify-between gap-3"><div><SectionLabel><Stethoscope size={13} /> Doctor-only clinical review</SectionLabel><h2 className="text-xl font-bold">AI draft + differential</h2></div><Badge tone={approved ? 'teal' : 'coral'}>{approved ? 'Approved & sent' : 'Unreviewed draft'}</Badge></div><div className="mt-5 rounded-xl border border-accent/70 bg-accent/25 p-4"><p className="font-mono text-[10px] font-bold uppercase tracking-[.12em] text-accent-foreground">AI draft · requires clinician decision</p><div className="mt-4 space-y-3 text-sm"><p><strong>S:</strong> {consultation.region} symptoms, 3 days, no confirmed trauma.</p><p><strong>O:</strong> Localized discomfort; patient-selected point recorded at {consultation.point}.</p><div><strong>A: Differential diagnosis</strong><div className="mt-2 space-y-2 pl-4 text-xs text-muted-foreground"><p><span className="font-bold text-destructive">1. Septic process · urgent if red flags confirmed</span></p><p>2. Gout flare</p><p>3. Mechanical strain / osteoarthritis flare</p></div></div><p><strong>P:</strong> {editing ? 'Edited plan: confirm safety answers, review imaging, then decide next care.' : 'AI suggested plan: clinician review, conservative movement, and follow-up.'}</p></div></div><div className="mt-5 flex flex-wrap gap-2"><Button variant="secondary" onClick={() => setEditing(!editing)} icon={editing ? Check : FileText} testId="button-edit-soap">{editing ? 'Done editing' : 'Edit draft'}</Button><Button onClick={() => setApproved(!approved)} icon={approved ? RefreshCw : CheckCircle2} testId="button-approve-send-soap">{approved ? 'Reopen review' : 'Approve & send'}</Button></div></Panel>;
-}
-
-function DoctorAnnotationTool({ consultation }: { consultation: ConsultationState }) {
-  const [layer, setLayer] = useState('Muscle');
-  const [pin, setPin] = useState(false);
-  const [boundary, setBoundary] = useState(false);
-  const [saved, setSaved] = useState(false);
-  return <Panel className="p-6"><div className="flex items-start justify-between gap-3"><div><SectionLabel><Move3d size={13} /> Doctor 3D annotation</SectionLabel><h2 className="text-xl font-bold">Annotate · {consultation.region}</h2><p className="mt-1 text-xs text-muted-foreground">Patient point: {consultation.point}</p></div><Badge tone={saved ? 'teal' : 'lime'}>{saved ? 'Saved to thread' : 'Doctor layer'}</Badge></div><div className="mt-5 grid gap-5 md:grid-cols-[.8fr_1.2fr]"><div className="clinical-grid flex min-h-[280px] items-center justify-center rounded-xl border border-border bg-muted/30"><div className="relative h-56 w-32"><div className="absolute left-1/2 top-0 h-11 w-11 -translate-x-1/2 rounded-full border-2 border-primary/50 bg-primary/10" /><div className="absolute left-1/2 top-11 h-28 w-20 -translate-x-1/2 rounded-[45%] border-2 border-primary/50 bg-primary/10" /><div className="absolute left-1/2 top-[112px] h-12 w-14 -translate-x-1/2 rounded-full border-2 border-muted-foreground bg-muted-foreground/20" /><div className={`absolute left-1/2 top-[105px] h-5 w-5 -translate-x-1/2 rounded-full ${pin ? 'bg-primary ring-4 ring-primary/20' : 'bg-muted-foreground'}`} /><div className={`absolute left-1/2 top-[118px] h-12 w-20 -translate-x-1/2 rounded border-2 border-dashed ${boundary ? 'border-primary' : 'border-transparent'}`} /></div></div><div><p className="text-xs font-bold text-muted-foreground">Layers</p><div className="mt-2 flex flex-wrap gap-2">{['Skin', 'Muscle', 'Bone'].map(item => <button key={item} type="button" onClick={() => setLayer(item)} className={`rounded-lg border px-3 py-2 text-xs font-bold ${layer === item ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'}`}>{item}</button>)}</div><p className="mt-5 text-xs leading-5 text-muted-foreground">Patient point is shown in grey. Your clinical pins and boundary markers are stored as a separate doctor layer.</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="secondary" onClick={() => setPin(!pin)} icon={MapPinIcon} testId="button-add-doctor-pin">{pin ? 'Pin added' : 'Add pin'}</Button><Button variant="secondary" onClick={() => setBoundary(!boundary)} icon={PanelsTopLeft} testId="button-draw-boundary">{boundary ? 'Boundary drawn' : 'Draw boundary'}</Button></div><Button className="mt-4" onClick={() => setSaved(!saved)} icon={saved ? Check : FileCheck2} testId="button-save-annotation">{saved ? 'Annotation saved' : 'Save annotation'}</Button></div></div></Panel>;
-}
-
-function DoctorPrescriptionDraft() {
-  const [approved, setApproved] = useState(false);
-  const [editing, setEditing] = useState(false);
-  return <Panel className="p-6"><div className="flex items-start justify-between gap-3"><div><SectionLabel><Pill size={13} /> Doctor prescription workflow</SectionLabel><h2 className="text-xl font-bold">Prescription draft / approval</h2></div><Badge tone={approved ? 'teal' : 'lime'}>{approved ? 'Approved & sent' : 'AI draft · unreviewed'}</Badge></div><div className="mt-5 rounded-xl border border-border p-4"><div className="grid gap-3 text-sm sm:grid-cols-2"><div><span className="text-xs text-muted-foreground">Medicine</span><p className="font-bold">{editing ? 'Diclofenac 50mg · edited' : 'Diclofenac 50mg'}</p></div><div><span className="text-xs text-muted-foreground">Dosage</span><p className="font-bold">1 tablet, twice daily</p></div><div><span className="text-xs text-muted-foreground">Duration</span><p className="font-bold">5 days · Oral</p></div><div><span className="text-xs text-muted-foreground">Linked diagnosis</span><p className="font-bold">Knee / joint inflammation</p></div></div><div className="mt-5 space-y-2 border-t border-border pt-4 text-xs"><p className="flex items-center gap-2 text-primary"><Check size={14} /> Checked: no allergy conflict</p><p className="flex items-center gap-2 text-primary"><Check size={14} /> Available · DRAP registered</p><p className="flex items-center gap-2 text-destructive"><X size={14} /> Excluded: Ibuprofen · allergy conflict</p></div></div><div className="mt-5 flex flex-wrap gap-2"><Button variant="secondary" onClick={() => setEditing(!editing)} icon={FileText} testId="button-edit-prescription">{editing ? 'Done editing' : 'Edit prescription'}</Button><Button onClick={() => setApproved(!approved)} icon={approved ? RefreshCw : CheckCircle2} testId="button-approve-send-prescription">{approved ? 'Reopen approval' : 'Approve & send'}</Button></div></Panel>;
-}
-
-function PatientDashboard({ setLocation }: { setLocation: (path: string) => void }) {
-  const entryOptions = [
-    { id: 'report-symptom', title: 'Report a symptom', copy: 'Tell us what changed. We’ll map the area, check safety, and guide the next step.', icon: AlertCircle, tone: 'coral', path: '/intake' },
-    { id: 'book-appointment', title: 'Book an appointment', copy: 'Go directly to a verified doctor or physiotherapist and choose a time.', icon: CalendarDays, tone: 'teal', path: '/booking' },
-    { id: 'continue-care', title: 'Continue care', copy: 'Return to your active consultation, treatment plan, reports, or follow-up.', icon: ArrowRight, tone: 'lime', path: '/thread' },
-  ];
-  return <div className="mx-auto max-w-6xl animate-rise">
-    <PageHeader eyebrow="Home · Patient care lane" title={<>How can we help you <span className="text-primary">today?</span></>} detail="Choose the path that fits what you need right now. Your care team, safety checks, and next steps stay connected." action={<Badge tone="teal"><ShieldCheck size={12} /> Safety-led care</Badge>} />
-    <Panel className="clinical-grid overflow-hidden p-6 md:p-10" accent>
-      <div className="flex flex-col items-start justify-between gap-7 md:flex-row md:items-center">
-        <div className="max-w-2xl">
-          <Badge tone="teal"><StatusDot /> Start here</Badge>
-          <h2 className="mt-5 text-3xl font-bold tracking-[-.055em] md:text-4xl">One clear place to begin.</h2>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">Whether something is new, you already know you need an appointment, or you’re returning to an existing care plan, pick one lane below.</p>
-        </div>
-        <div className="hidden h-28 w-28 shrink-0 rounded-full border border-primary/15 bg-primary/5 md:block"><div className="m-4 grid h-20 w-20 place-items-center rounded-full border border-dashed border-primary/40"><HeartPulse className="text-primary" size={32} /></div></div>
+  return <Panel className="p-5">
+    <div className="mb-3 flex items-start justify-between">
+      <span className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className={`grid h-9 w-9 place-items-center rounded-xl ${tone === 'coral' ? 'bg-destructive/10 text-destructive' : tone === 'lime' ? 'bg-accent text-accent-foreground' : 'bg-primary/10 text-primary'}`}>
+        <Icon size={17} />
       </div>
-      <div className="mt-9 grid gap-4 md:grid-cols-3">
-        {entryOptions.map(item => { const Icon = item.icon; return <button key={item.id} data-testid={`button-${item.id}`} onClick={() => setLocation(item.path)} className="group flex min-h-52 flex-col rounded-2xl border border-border/80 bg-card p-5 text-left transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-clinic-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-          <div className={`mb-8 grid h-12 w-12 place-items-center rounded-xl ${item.tone === 'coral' ? 'bg-destructive/10 text-destructive' : item.tone === 'lime' ? 'bg-accent text-accent-foreground' : 'bg-primary/10 text-primary'}`}><Icon size={21} /></div>
-          <div className="mt-auto flex items-center justify-between gap-3 text-base font-bold">{item.title}<ArrowRight size={17} className="transition-transform group-hover:translate-x-1" /></div>
-          <p className="mt-2 text-sm leading-5 text-muted-foreground">{item.copy}</p>
-        </button>; })}
-      </div>
-    </Panel>
-    <div className="mt-6 flex items-start gap-3 rounded-2xl border border-primary/15 bg-primary/5 p-5">
-      <ShieldCheck className="mt-0.5 shrink-0 text-primary" size={18} />
-      <div><p className="text-sm font-bold">Your safety comes first.</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Every new symptom report starts with a fixed safety check. Possible red flags are routed to a doctor before any AI guidance.</p></div>
     </div>
-  </div>;
+    <div className="text-2xl font-bold tracking-tight">{value}</div>
+    <div className="mt-1 text-xs text-muted-foreground">{note}</div>
+  </Panel>;
 }
 
-const bodyRegions = [
-  { name: 'Neck', taxonomy: 'MSK.NECK.01', point: 'C4 · 42, 18', className: 'left-[48%] top-[18%]' },
-  { name: 'Shoulder', taxonomy: 'MSK.SHOULDER.02', point: 'R shoulder · 34, 27', className: 'left-[36%] top-[28%]' },
-  { name: 'Upper back', taxonomy: 'MSK.BACK.UPPER', point: 'T6 · 48, 30', className: 'left-[48%] top-[31%]' },
-  { name: 'Lower back', taxonomy: 'MSK.BACK.LOWER', point: 'L4 · 48, 42', className: 'left-[48%] top-[42%]' },
-  { name: 'Hip / pelvis', taxonomy: 'MSK.HIP.01', point: 'R hip · 40, 49', className: 'left-[41%] top-[51%]' },
-  { name: 'Knee', taxonomy: 'MSK.KNEE.01', point: 'R knee · 42, 67', className: 'left-[42%] top-[67%]' },
-  { name: 'Ankle / foot', taxonomy: 'MSK.FOOT.01', point: 'R ankle · 43, 87', className: 'left-[43%] top-[88%]' },
-  { name: 'Wrist / hand', taxonomy: 'MSK.HAND.01', point: 'R wrist · 30, 47', className: 'left-[30%] top-[47%]' },
+/* -------------------------------------------------------------
+   ANATOMICAL REGIONS & MUSCLE-SPECIFIC RED-FLAG QUESTIONS
+-------------------------------------------------------------- */
+interface AnatomicalRegion {
+  name: string;
+  latinName: string;
+  view: 'anterior' | 'posterior';
+  taxonomy: string;
+  point: string;
+  topPct: number;
+  leftPct: number;
+  description: string;
+  muscleQuestions: string[];
+  candidates: MuscleCandidate[];
+}
+
+const anatomicalRegions: AnatomicalRegion[] = [
+  {
+    name: 'Neck & Trapezius',
+    latinName: 'M. trapezius / Splenius capitis',
+    view: 'posterior',
+    taxonomy: 'MSK.CERVICAL.01',
+    point: 'C4-C7 Trapezius · 22%, 73%',
+    topPct: 22,
+    leftPct: 73,
+    description: 'Cervical paraspinals, upper trapezius ridge, levator scapulae',
+    muscleQuestions: [
+      'Does pain shoot down through your shoulder into your fingers or hand?',
+      'Do you have any difficulty keeping your balance or walking normally?',
+      'Did this neck pain begin after a sudden whip, vehicle crash, or blow to the head?'
+    ],
+    candidates: [
+      { name: 'Upper Trapezius', latinName: 'M. trapezius pars descendens', depth: 'Superficial', confidence: 93, matchCriteria: ['Cervicothoracic angle palpation', 'Exacerbated by shoulder shrug'] },
+      { name: 'Levator Scapulae', latinName: 'M. levator scapulae', depth: 'Intermediate', confidence: 81, matchCriteria: ['Superior scapular angle pain', 'Restricted rotation'] },
+      { name: 'Splenius Capitis', latinName: 'M. splenius capitis', depth: 'Deep', confidence: 64, matchCriteria: ['Deep suboccipital tension'] }
+    ]
+  },
+  {
+    name: 'Shoulder (Rotator Cuff)',
+    latinName: 'M. supraspinatus & deltoideus',
+    view: 'anterior',
+    taxonomy: 'MSK.SHOULDER.02',
+    point: 'R Glenohumeral · 27%, 23%',
+    topPct: 27,
+    leftPct: 23,
+    description: 'Rotator cuff complex: supraspinatus, infraspinatus, deltoid',
+    muscleQuestions: [
+      'Is there severe pain when raising your arm above head level (between 60° and 120°)?',
+      'Did you feel a sudden snap, tear, or immediate inability to lift the arm?',
+      'Are you experiencing any chest heaviness, shortness of breath, or cold sweats?'
+    ],
+    candidates: [
+      { name: 'Supraspinatus Tendon', latinName: 'M. supraspinatus', depth: 'Intermediate', confidence: 95, matchCriteria: ['Painful arc (60-120°)', 'Empty-can test match', 'Subacromial tenderness'] },
+      { name: 'Infraspinatus', latinName: 'M. infraspinatus', depth: 'Intermediate', confidence: 78, matchCriteria: ['Weakness during resisted external rotation'] },
+      { name: 'Deltoid (Anterior)', latinName: 'M. deltoideus', depth: 'Superficial', confidence: 65, matchCriteria: ['Surface palpation tenderness'] }
+    ]
+  },
+  {
+    name: 'Lower Back (Lumbar)',
+    latinName: 'Erector spinae / M. quadratus lumborum',
+    view: 'posterior',
+    taxonomy: 'MSK.BACK.LOWER',
+    point: 'L4-L5 Paraspinal · 46%, 74%',
+    topPct: 46,
+    leftPct: 74,
+    description: 'Lumbar paraspinals, erector spinae, multifidus, quadratus lumborum',
+    muscleQuestions: [
+      'Does pain shoot down your leg past the knee with numbness or foot weakness?',
+      'Have you noticed any new loss of bladder or bowel control, or numbness in the groin?',
+      'Did this begin after a fall, high-impact injury, or with high fever/chills?'
+    ],
+    candidates: [
+      { name: 'Erector Spinae', latinName: 'Longissimus thoracis', depth: 'Intermediate', confidence: 91, matchCriteria: ['Paraspinal palpation match', 'Worse upon extension', 'No foot drop'] },
+      { name: 'Quadratus Lumborum', latinName: 'M. quadratus lumborum', depth: 'Deep', confidence: 82, matchCriteria: ['Lateral pelvic referral', 'Pain on lateral bend'] },
+      { name: 'Multifidus', latinName: 'Mm. multifidi', depth: 'Deep', confidence: 68, matchCriteria: ['Segmental vertebral load tenderness'] }
+    ]
+  },
+  {
+    name: 'Knee (Quadriceps & Patella)',
+    latinName: 'M. quadriceps femoris / Patellar tendon',
+    view: 'anterior',
+    taxonomy: 'MSK.KNEE.01',
+    point: 'R Patellar Zone · 68%, 23%',
+    topPct: 68,
+    leftPct: 23,
+    description: 'Quadriceps femoris tendon, patellar tendon, vastus medialis',
+    muscleQuestions: [
+      'Is the knee locked and physically unable to bend or fully straighten?',
+      'Did you hear or feel a loud pop followed by rapid large swelling within 2 hours?',
+      'Are you completely unable to bear weight or take 4 steps on this leg?'
+    ],
+    candidates: [
+      { name: 'Patellar Tendon', latinName: 'Ligamentum patellae', depth: 'Superficial', confidence: 93, matchCriteria: ['Inferior patella tenderness', 'Pain on stairs descent'] },
+      { name: 'Vastus Medialis Oblique (VMO)', latinName: 'M. vastus medialis', depth: 'Superficial', confidence: 84, matchCriteria: ['Anteromedial peripatellar ache'] },
+      { name: 'Rectus Femoris', latinName: 'M. rectus femoris', depth: 'Intermediate', confidence: 71, matchCriteria: ['Terminal knee extension discomfort'] }
+    ]
+  },
+  {
+    name: 'Hamstring & Calf',
+    latinName: 'M. biceps femoris / Gastrocnemius',
+    view: 'posterior',
+    taxonomy: 'MSK.LEG.POSTERIOR',
+    point: 'Biceps Femoris / Gastrocnemius · 72%, 78%',
+    topPct: 72,
+    leftPct: 78,
+    description: 'Hamstring group, semitendinosus, gastrocnemius, Achilles',
+    muscleQuestions: [
+      'Is one calf significantly swollen, red, and warm to the touch (possible blood clot)?',
+      'Did it feel like you were hit in the back of the ankle with immediate weakness?',
+      'Is there total loss of sensation in your foot or toes?'
+    ],
+    candidates: [
+      { name: 'Biceps Femoris (Hamstring)', latinName: 'M. biceps femoris', depth: 'Intermediate', confidence: 90, matchCriteria: ['Ischial origin tenderness', 'Pain on terminal knee extension'] },
+      { name: 'Medial Gastrocnemius', latinName: 'M. gastrocnemius', depth: 'Superficial', confidence: 82, matchCriteria: ['Mid-belly calf tenderness with heel raise'] }
+    ]
+  },
+  {
+    name: 'Ankle & Foot',
+    latinName: 'Tibialis anterior & Peroneal tendons',
+    view: 'anterior',
+    taxonomy: 'MSK.FOOT.01',
+    point: 'Anterior Tibiotalar · 88%, 24%',
+    topPct: 88,
+    leftPct: 24,
+    description: 'Tibialis anterior, lateral ligaments, Achilles insertion',
+    muscleQuestions: [
+      'Are you completely unable to take four steps immediately after the injury (Ottawa Rule)?',
+      'Is there direct bone tenderness right over the malleolus (ankle bone) or 5th metatarsal?',
+      'Is your foot pale, cold, or lacking a pulse compared to the other side?'
+    ],
+    candidates: [
+      { name: 'Tibialis Anterior Tendon', latinName: 'M. tibialis anterior', depth: 'Superficial', confidence: 88, matchCriteria: ['Pain on resisted dorsiflexion'] },
+      { name: 'Peroneus Longus / Brevis', latinName: 'Mm. peronei', depth: 'Superficial', confidence: 79, matchCriteria: ['Lateral retromalleolar tenderness'] }
+    ]
+  }
 ];
 
-function BodyRegionPicker({ region, setRegion, prefix = 'button-model' }: { region: string; setRegion: (region: string) => void; prefix?: string }) {
-  const selected = bodyRegions.find(item => item.name === region) ?? bodyRegions[3];
-  return <div className="mt-7 grid gap-6 lg:grid-cols-[.9fr_1.1fr]">
-    <div className="rounded-2xl border border-border bg-[linear-gradient(145deg,hsl(var(--muted)),hsl(var(--card)))] p-5">
-      <div className="mb-4 flex items-center justify-between"><div><p className="font-mono text-[10px] uppercase tracking-[.14em] text-primary">Interactive myology model</p><p className="mt-1 text-xs text-muted-foreground">Select one specific body point</p></div><Badge tone="teal"><Move3d size={11} /> 1,600 mesh parts</Badge></div>
-      <div className="relative mx-auto h-[430px] max-w-[250px] overflow-hidden rounded-xl border border-primary/10 bg-card/70">
-        <div className="absolute left-1/2 top-[7%] h-12 w-12 -translate-x-1/2 rounded-full border-4 border-primary/25 bg-primary/10" />
-        <div className="absolute left-1/2 top-[19%] h-[29%] w-[32%] -translate-x-1/2 rounded-[42%_42%_30%_30%] border-4 border-primary/25 bg-primary/10" />
-        <div className="absolute left-[28%] top-[21%] h-[29%] w-[12%] -rotate-[11deg] rounded-full border-4 border-primary/20 bg-primary/5" />
-        <div className="absolute right-[28%] top-[21%] h-[29%] w-[12%] rotate-[11deg] rounded-full border-4 border-primary/20 bg-primary/5" />
-        <div className="absolute left-[40%] top-[45%] h-[39%] w-[9%] -rotate-1 rounded-full border-4 border-primary/25 bg-primary/10" />
-        <div className="absolute right-[40%] top-[45%] h-[39%] w-[9%] rotate-1 rounded-full border-4 border-primary/25 bg-primary/10" />
-        <div className="absolute left-[40%] top-[82%] h-[12%] w-[9%] -rotate-2 rounded-b-[45%] border-4 border-primary/20 bg-primary/5" />
-        <div className="absolute right-[40%] top-[82%] h-[12%] w-[9%] rotate-2 rounded-b-[45%] border-4 border-primary/20 bg-primary/5" />
-        {bodyRegions.map(item => <button key={item.name} type="button" aria-label={`Select ${item.name}`} data-testid={`${prefix}-${item.name.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`} onClick={() => setRegion(item.name)} className={`absolute z-10 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-all ${item.name === selected.name ? 'scale-125 border-card bg-destructive shadow-[0_0_0_5px_hsl(var(--destructive)/.22)]' : 'border-card bg-primary/65 hover:scale-110 hover:bg-primary'}`} style={{ left: item.className.match(/left-\[(.*?)\]/)?.[1], top: item.className.match(/top-\[(.*?)\]/)?.[1] }} />)}
-        <div className="absolute bottom-3 left-3 rounded-md bg-card/90 px-2 py-1 font-mono text-[9px] text-muted-foreground">FRONT VIEW · CLICK A POINT</div>
+/* -------------------------------------------------------------
+   PATIENT INTAKE FLOW (UNCLUTTERED, PROGRESSIVE STEP-BY-STEP)
+-------------------------------------------------------------- */
+function IntakePage({
+  setLocation,
+  onSave
+}: {
+  setLocation: (path: string) => void;
+  onSave: (state: ConsultationState) => void;
+}) {
+  const [step, setStep] = useState(1);
+  const [selectedRegion, setSelectedRegion] = useState<AnatomicalRegion>(anatomicalRegions[2]); // Lower back
+  const [depth, setDepth] = useState<'Superficial' | 'Deep'>('Deep');
+  const [muscleAnswers, setMuscleAnswers] = useState<Record<string, string>>({});
+  
+  // AI Cross-questioning state
+  const [aiQuestions, setAiQuestions] = useState({
+    onset: '3 to 5 days ago, after lifting heavy groceries',
+    movementPain: 'Hurts most when sitting for over 20 minutes and bending forward',
+    relief: 'Gentle walking and warmth provide mild temporary relief'
+  });
+
+  // Second Red-flag screening in chat
+  const [secondRedFlags, setSecondRedFlags] = useState<Record<string, string>>({});
+  const [dietDecision, setDietDecision] = useState<'AI_SUGGESTED' | 'PATIENT_ACCEPTED' | 'SENT_FOR_REVIEW'>('AI_SUGGESTED');
+  const [reportSent, setReportSent] = useState(false);
+
+  // Check if first muscle-specific questions flag an acute condition
+  const isAcuteFirst = Object.values(muscleAnswers).some(val => val === 'yes' || val === 'unsure');
+  const allFirstAnswered = selectedRegion.muscleQuestions.every(q => muscleAnswers[q]);
+
+  // Second red flag questions
+  const secondQuestions = [
+    'Did you develop sudden unexplained muscle twitching or weakness?',
+    'Are you experiencing sudden fever, night sweats or severe chills?'
+  ];
+  const allSecondAnswered = secondQuestions.every(q => secondRedFlags[q]);
+  const isAcuteSecond = Object.values(secondRedFlags).some(val => val === 'yes' || val === 'unsure');
+
+  const handleFinishAndSave = (routeTo: string) => {
+    onSave({
+      region: selectedRegion.name,
+      taxonomy: selectedRegion.taxonomy,
+      point: selectedRegion.point,
+      view: selectedRegion.view,
+      mode: 'A',
+      depth,
+      candidateMuscles: selectedRegion.candidates,
+      muscleSpecificAnswers: muscleAnswers,
+      deepeningAnswers: {
+        'Onset & Cause': aiQuestions.onset,
+        'Aggravating factor': aiQuestions.movementPain,
+        'Relieving factor': aiQuestions.relief
+      },
+      secondRedFlagAnswers: secondRedFlags,
+      dietState: dietDecision,
+      reportSentToDoctor: reportSent || true,
+      followUpStatus: 'pending',
+      followUpNote: 'Scheduled for 24-hour follow-up check.',
+      escalatedToAppointment: routeTo === '/booking',
+      labReports: [
+        {
+          id: 'LAB-001',
+          name: 'Lumbosacral X-Ray Report',
+          fileName: 'lumbar_xray_report.pdf',
+          uploadDate: 'Today',
+          summary: 'Mild L4-L5 disc space narrowing without acute bony fracture.',
+          status: 'Approved by Doctor'
+        }
+      ]
+    });
+    setLocation(routeTo);
+  };
+
+  return (
+    <div className="mx-auto max-w-4xl animate-rise space-y-6">
+      <button
+        onClick={() => setLocation('/')}
+        className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft size={16} /> Back to Home
+      </button>
+
+      {/* Clear, Accessible Step Tracker */}
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="flex items-center justify-between text-xs font-bold text-muted-foreground mb-2">
+          <span>Step {step} of 4</span>
+          <span className="text-primary font-bold">
+            {step === 1 ? '1. Pinpoint Muscle' : step === 2 ? '2. Muscle Safety Check' : step === 3 ? '3. AI Deepening & Care Plan' : '4. Safety Recheck & Doctor Option'}
+          </span>
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          {[1, 2, 3, 4].map(s => (
+            <div
+              key={s}
+              className={`h-2.5 rounded-full transition-all ${
+                step >= s ? 'bg-primary' : 'bg-muted'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* STEP 1: PINPOINT ON 3D / MUSCULAR MODEL */}
+      {step === 1 && (
+        <Panel className="space-y-6">
+          <div>
+            <SectionLabel><Layers size={14} /> Step 1 · Muscle Pinpoint</SectionLabel>
+            <h2 className="text-2xl font-bold tracking-tight">Tap Where You Feel Discomfort</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Select your affected muscle area on the body illustration below.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-[1.1fr_.9fr]">
+            {/* Interactive Anatomical Body Map */}
+            <div className="relative mx-auto w-full max-w-[380px] overflow-hidden rounded-2xl border border-primary/20 bg-card shadow-sm">
+              <img
+                src="/muscular_anatomy_body.jpg"
+                alt="Human Muscular System"
+                className="h-auto w-full object-cover select-none"
+              />
+
+              {anatomicalRegions.map(reg => {
+                const isSelected = reg.name === selectedRegion.name;
+                return (
+                  <button
+                    key={reg.name}
+                    type="button"
+                    onClick={() => setSelectedRegion(reg)}
+                    style={{ top: `${reg.topPct}%`, left: `${reg.leftPct}%` }}
+                    className={`group absolute -translate-x-1/2 -translate-y-1/2 rounded-full p-1.5 transition-all ${
+                      isSelected ? 'z-20 scale-125' : 'z-10 hover:scale-115'
+                    }`}
+                  >
+                    <span className={`flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-bold shadow-md ${
+                      isSelected
+                        ? 'border-white bg-destructive text-white ring-4 ring-destructive/30'
+                        : 'border-white bg-primary text-white hover:bg-primary/90'
+                    }`}>
+                      {isSelected ? '●' : '+'}
+                    </span>
+                    <span className={`absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-bold shadow-sm ${
+                      isSelected ? 'bg-foreground text-background opacity-100' : 'opacity-0 group-hover:opacity-100 bg-background/90 text-foreground'
+                    }`}>
+                      {reg.name}
+                    </span>
+                  </button>
+                );
+              })}
+
+              <div className="absolute bottom-2 inset-x-2 flex justify-between rounded-lg bg-background/90 px-3 py-1 text-[11px] font-bold">
+                <span>← Anterior (Front)</span>
+                <span>Posterior (Back) →</span>
+              </div>
+            </div>
+
+            {/* Selection Details & Depth */}
+            <div className="flex flex-col justify-between space-y-4">
+              <div className="rounded-xl border border-primary/25 bg-primary/5 p-5">
+                <span className="font-mono text-xs font-bold uppercase text-primary">Selected Muscle Zone</span>
+                <h3 className="mt-1 text-2xl font-bold text-foreground">{selectedRegion.name}</h3>
+                <p className="font-mono text-xs text-muted-foreground">{selectedRegion.latinName}</p>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{selectedRegion.description}</p>
+
+                <div className="mt-4 border-t border-primary/15 pt-3">
+                  <label className="block text-xs font-bold uppercase text-muted-foreground mb-2">Tissue Depth Layer</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['Superficial', 'Deep'] as const).map(d => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setDepth(d)}
+                        className={`rounded-xl border p-2.5 text-center text-xs font-bold transition-all ${
+                          depth === d
+                            ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                            : 'border-border bg-card text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {d} Layer
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <span className="block text-xs font-bold text-muted-foreground mb-2 uppercase">Or Quick Select:</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {anatomicalRegions.map(reg => (
+                    <button
+                      key={reg.name}
+                      type="button"
+                      onClick={() => setSelectedRegion(reg)}
+                      className={`rounded-lg border p-2 text-left text-xs font-semibold ${
+                        reg.name === selectedRegion.name
+                          ? 'border-primary bg-primary/10 text-primary font-bold'
+                          : 'border-border bg-card text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {reg.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Button onClick={() => setStep(2)} icon={ArrowRight} testId="button-step1-continue" className="w-full">
+                Continue with {selectedRegion.name}
+              </Button>
+            </div>
+          </div>
+        </Panel>
+      )}
+
+      {/* STEP 2: MUSCLE-SPECIFIC RED-FLAG QUESTIONS */}
+      {step === 2 && (
+        <Panel className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <SectionLabel><ShieldCheck size={14} /> Step 2 · Muscle-Specific Questions</SectionLabel>
+              <h2 className="text-2xl font-bold tracking-tight">{selectedRegion.name} Safety Check</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Questions tailored specifically to the {selectedRegion.name} to check for urgent red flags before proceeding.
+              </p>
+            </div>
+            <Badge tone="coral"><ShieldAlert size={14} /> Required</Badge>
+          </div>
+
+          <div className="divide-y divide-border rounded-xl border border-border bg-card">
+            {selectedRegion.muscleQuestions.map((q, idx) => (
+              <div key={q} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <span className="font-mono text-xs font-bold text-primary mt-0.5">0{idx + 1}</span>
+                  <p className="text-sm font-semibold text-foreground leading-relaxed">{q}</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  {(['no', 'yes', 'unsure'] as const).map(ans => (
+                    <button
+                      key={ans}
+                      type="button"
+                      onClick={() => setMuscleAnswers({ ...muscleAnswers, [q]: ans })}
+                      className={`min-h-10 min-w-16 rounded-xl px-4 text-xs font-bold capitalize transition-all ${
+                        muscleAnswers[q] === ans
+                          ? ans === 'no'
+                            ? 'border border-primary bg-primary text-primary-foreground shadow-sm'
+                            : 'border border-destructive bg-destructive text-destructive-foreground shadow-sm'
+                          : 'border border-border bg-card text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {ans === 'unsure' ? 'Not sure' : ans}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Severity Gate Result Card */}
+          {allFirstAnswered && (
+            <div className={`rounded-xl border p-5 ${
+              isAcuteFirst ? 'border-destructive/40 bg-destructive/10' : 'border-primary/30 bg-primary/5'
+            }`}>
+              <div className="flex items-start gap-3.5">
+                {isAcuteFirst ? <AlertCircle size={26} className="text-destructive shrink-0 mt-0.5" /> : <CheckCircle2 size={26} className="text-primary shrink-0 mt-0.5" />}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-base font-bold text-foreground">
+                      {isAcuteFirst ? 'ACUTE RED FLAG · AUTOMATIC DOCTOR ESCALATION' : 'Safety Check Cleared · SAFE'}
+                    </h4>
+                    <Badge tone={isAcuteFirst ? 'coral' : 'teal'}>
+                      {isAcuteFirst ? 'Module 4: Severity Gate Triggered' : 'Proceed Permitted'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {isAcuteFirst
+                      ? 'In accordance with clinical safety protocol (Module 4 Severity Gate), because urgent symptoms were flagged, ALL AI-driven content is strictly bypassed. You are being immediately routed to credentialed medical specialists.'
+                      : 'No critical neurological or trauma red flags detected. You may safely proceed to AI muscle cross-questioning.'}
+                  </p>
+                </div>
+              </div>
+
+              {isAcuteFirst && (
+                <div className="mt-4 pt-4 border-t border-destructive/20 flex flex-col sm:flex-row gap-2.5 justify-end">
+                  <Button
+                    variant="danger"
+                    onClick={() => handleFinishAndSave('/booking')}
+                    icon={CalendarDays}
+                    testId="button-urgent-book-doctor"
+                  >
+                    Immediate Doctor Appointment (Auto-Route)
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleFinishAndSave('/thread')}
+                    icon={Stethoscope}
+                    testId="button-urgent-doctor-thread"
+                  >
+                    Send Urgent Triage to Doctor
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between border-t border-border pt-4">
+            <Button variant="ghost" onClick={() => setStep(1)} icon={ArrowLeft}>
+              Back to Model
+            </Button>
+            {!isAcuteFirst ? (
+              <Button
+                disabled={!allFirstAnswered}
+                onClick={() => setStep(3)}
+                icon={ArrowRight}
+                testId="button-step2-continue"
+              >
+                Continue to AI Analysis
+              </Button>
+            ) : null}
+          </div>
+        </Panel>
+      )}
+
+      {/* STEP 3: AI CHAT CROSS-QUESTIONING, NARROWING & RECOMMENDED DIET/EXERCISES */}
+      {step === 3 && (
+        <Panel className="space-y-6">
+          <div>
+            <SectionLabel><Sparkles size={14} /> Step 3 · AI Cross-Questioning & Advisory</SectionLabel>
+            <h2 className="text-2xl font-bold tracking-tight">AI Diagnostic Interview</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The AI model cross-examines your symptoms to narrow down the target muscle group, then recommends safe exercises and localized nutrition.
+            </p>
+          </div>
+
+          {/* AI Cross-Questioning Box */}
+          <div className="space-y-4 rounded-xl border border-border bg-muted/20 p-5">
+            <div className="flex items-center gap-2 font-mono text-xs font-bold text-primary">
+              <Sparkles size={16} /> AI Cross-Questioning (Understanding the Root Muscle)
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-foreground">When did this discomfort start, and what was the initial trigger?</label>
+                <input
+                  value={aiQuestions.onset}
+                  onChange={e => setAiQuestions({ ...aiQuestions, onset: e.target.value })}
+                  className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-foreground">Which specific movement worsens the pain most?</label>
+                <input
+                  value={aiQuestions.movementPain}
+                  onChange={e => setAiQuestions({ ...aiQuestions, movementPain: e.target.value })}
+                  className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-foreground">Does anything ease the pain (e.g. resting, warmth, stretching)?</label>
+                <input
+                  value={aiQuestions.relief}
+                  onChange={e => setAiQuestions({ ...aiQuestions, relief: e.target.value })}
+                  className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+
+            {/* Ranked narrowed muscle group */}
+            <div className="mt-4 rounded-xl border border-primary/25 bg-card p-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-primary">AI Narrowed Structure:</span>
+              <div className="mt-2 flex items-center justify-between">
+                <div>
+                  <h4 className="text-base font-bold text-foreground">{selectedRegion.candidates[0].name}</h4>
+                  <p className="font-mono text-xs text-muted-foreground">{selectedRegion.candidates[0].latinName}</p>
+                </div>
+                <Badge tone="teal">{selectedRegion.candidates[0].confidence}% Match</Badge>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Signals: {selectedRegion.candidates[0].matchCriteria.join(' · ')}
+              </p>
+            </div>
+          </div>
+
+          {/* AI Recommended Diet & Exercises */}
+          <div className="space-y-5 rounded-xl border border-border bg-card p-5">
+            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Activity size={18} className="text-primary" /> AI-Recommended Exercises & Diet
+            </h3>
+
+            {/* Exercises */}
+            <div>
+              <p className="text-xs font-bold uppercase text-muted-foreground mb-2">Gentle Mobility Exercises</p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  ['Pelvic Tilts & Rocking', '2 sets × 8 reps', 'Eases lumbar compression'],
+                  ['Knee-to-Chest Stretch', '2 × 15s holds', 'Gentle glute & paraspinal relief'],
+                  ['Short Guided Walk', '10 minutes on flat floor', 'Increases blood perfusion']
+                ].map(([title, dose, note]) => (
+                  <div key={title} className="rounded-xl border border-border bg-muted/20 p-3.5 text-xs">
+                    <p className="font-bold text-foreground">{title}</p>
+                    <p className="font-mono text-[11px] text-primary mt-1">{dose}</p>
+                    <p className="text-muted-foreground mt-1 text-[11px]">{note}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Pakistani Anti-inflammatory Diet with Decision Point */}
+            <div className="border-t border-border pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1.5">
+                  <HeartPulse size={15} className="text-primary" /> Anti-Inflammatory Pakistani Diet Guidance
+                </p>
+                <Badge tone={dietDecision === 'PATIENT_ACCEPTED' ? 'teal' : dietDecision === 'SENT_FOR_REVIEW' ? 'coral' : 'neutral'}>
+                  {dietDecision.replaceAll('_', ' ')}
+                </Badge>
+              </div>
+
+              <div className="grid gap-2.5 sm:grid-cols-2 text-xs">
+                <div className="rounded-lg border border-border bg-accent/20 p-3">
+                  <strong>Adrak & Haldi Kahwa (Ginger & Turmeric tea):</strong>
+                  <p className="text-muted-foreground mt-0.5">Helps downregulate inflammatory cytokines naturally.</p>
+                </div>
+                <div className="rounded-lg border border-border bg-accent/20 p-3">
+                  <strong>Tazeh Sabziyan (Spinach & Fenugreek / Palak):</strong>
+                  <p className="text-muted-foreground mt-0.5">High magnesium and antioxidants for muscle relaxation.</p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 text-xs">
+                <p className="font-bold text-foreground">Diet Decision Point:</p>
+                <p className="text-muted-foreground mt-0.5">
+                  Have comorbidities? Choose whether to accept this diet guidance directly or verify with doctor:
+                </p>
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  <Button
+                    variant={dietDecision === 'PATIENT_ACCEPTED' ? 'primary' : 'secondary'}
+                    className="min-h-9 px-3 text-xs"
+                    onClick={() => setDietDecision('PATIENT_ACCEPTED')}
+                    icon={Check}
+                  >
+                    Accept Directly into Feed
+                  </Button>
+                  <Button
+                    variant={dietDecision === 'SENT_FOR_REVIEW' ? 'danger' : 'secondary'}
+                    className="min-h-9 px-3 text-xs"
+                    onClick={() => setDietDecision('SENT_FOR_REVIEW')}
+                    icon={Stethoscope}
+                  >
+                    Send to Doctor for Verification
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-border pt-4">
+            <Button variant="ghost" onClick={() => setStep(2)} icon={ArrowLeft}>
+              Back to Questions
+            </Button>
+            <Button onClick={() => setStep(4)} icon={ArrowRight} testId="button-step3-continue">
+              Continue to Final Safety Recheck
+            </Button>
+          </div>
+        </Panel>
+      )}
+
+      {/* STEP 4: SECOND RED-FLAG RECHECK & CONSULT / APPOINTMENT OPTIONS */}
+      {step === 4 && (
+        <Panel className="space-y-6">
+          <div>
+            <SectionLabel><ShieldAlert size={14} /> Step 4 · Second Red-Flag Recheck & Doctor Routing</SectionLabel>
+            <h2 className="text-2xl font-bold tracking-tight">Final Safety Confirmation</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              After AI recommendations, we perform a mandatory second red-flag check to ensure you are safe before deciding on doctor care.
+            </p>
+          </div>
+
+          {/* Second Red-Flag Questions */}
+          <div className="divide-y divide-border rounded-xl border border-border bg-card">
+            {secondQuestions.map((q, idx) => (
+              <div key={q} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <span className="font-mono text-xs font-bold text-primary mt-0.5">0{idx + 1}</span>
+                  <p className="text-sm font-semibold text-foreground leading-relaxed">{q}</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  {(['no', 'yes', 'unsure'] as const).map(ans => (
+                    <button
+                      key={ans}
+                      type="button"
+                      onClick={() => setSecondRedFlags({ ...secondRedFlags, [q]: ans })}
+                      className={`min-h-10 min-w-16 rounded-xl px-4 text-xs font-bold capitalize transition-all ${
+                        secondRedFlags[q] === ans
+                          ? ans === 'no'
+                            ? 'border border-primary bg-primary text-primary-foreground shadow-sm'
+                            : 'border border-destructive bg-destructive text-destructive-foreground shadow-sm'
+                          : 'border border-border bg-card text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {ans === 'unsure' ? 'Not sure' : ans}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Doctor Report Transmission Checkbox */}
+          <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={reportSent}
+                onChange={e => setReportSent(e.target.checked)}
+                className="mt-1 h-4 w-4 accent-primary"
+              />
+              <div>
+                <span className="text-sm font-bold text-foreground">
+                  Send AI-Drafted Report to Doctor's Dashboard
+                </span>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  If checked, the full report with your pinpoint coordinates, narrowed muscle group ({selectedRegion.candidates[0].name}), and diet choice will be posted to Dr. Maya Chen's review queue.
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {/* Doctor Next Steps Options */}
+          <div className="border-t border-border pt-4">
+            <h4 className="text-base font-bold text-foreground mb-1">Choose How You Want to Proceed:</h4>
+            <p className="text-xs text-muted-foreground mb-4">
+              Select whether you want to chat online with a doctor or book an immediate in-person appointment.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => handleFinishAndSave('/thread')}
+                className="flex flex-col justify-between rounded-xl border border-border p-5 text-left transition-all hover:border-primary hover:shadow-clinic"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-base text-foreground">Online Consultation Thread</span>
+                    <MessageSquare size={18} className="text-primary" />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                    Open an asynchronous consultation with Dr. Maya Chen. Review notes, submit lab reports, and receive ongoing advice.
+                  </p>
+                </div>
+                <div className="mt-4 flex items-center gap-1.5 text-xs font-bold text-primary">
+                  <span>Open Care Thread</span>
+                  <ArrowRight size={14} />
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleFinishAndSave('/booking')}
+                className="flex flex-col justify-between rounded-xl border border-primary/40 bg-primary/5 p-5 text-left transition-all hover:border-primary hover:shadow-clinic"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-base text-foreground">Book Doctor Appointment</span>
+                    <CalendarDays size={18} className="text-primary" />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                    Escalate to an in-person or live video appointment with an orthopedic specialist. Slot selection and clinic hours.
+                  </p>
+                </div>
+                <div className="mt-4 flex items-center gap-1.5 text-xs font-bold text-primary">
+                  <span>Go to Booking Calendar</span>
+                  <ArrowRight size={14} />
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-4 flex justify-between">
+            <Button variant="ghost" onClick={() => setStep(3)} icon={ArrowLeft}>
+              Back to AI Guidance
+            </Button>
+          </div>
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------
+   CONSULTATION THREAD (CARE CHAT + LAB REPORTS + APPOINTMENT SHORTCUT)
+-------------------------------------------------------------- */
+function ThreadPage({
+  setLocation,
+  consultation,
+  onUpdateConsultation
+}: {
+  setLocation: (path: string) => void;
+  consultation: ConsultationState;
+  onUpdateConsultation: (next: ConsultationState) => void;
+}) {
+  const [activeTab, setActiveTab] = useState<'Chat' | 'Labs' | 'Anatomy'>('Chat');
+  const [message, setMessage] = useState('');
+  const [messages, setMessages] = useState<Array<{ sender: string; text: string; time: string }>>([
+    {
+      sender: 'Dr. Maya Chen',
+      text: `Hello Aisha, I received your intake report for ${consultation.region}. The AI narrowed the target muscle to ${consultation.candidateMuscles[0]?.name || 'paraspinal tissues'}, and your red-flag safety answers were reviewed. Please adhere to the gentle movements. You can also upload any X-rays or lab reports here.`,
+      time: '09:15 AM'
+    }
+  ]);
+
+  // Lab report upload state
+  const [uploadedFile, setUploadedFile] = useState<string | null>(null);
+  const [labSummary, setLabSummary] = useState('');
+
+  const handleSendMessage = () => {
+    if (!message.trim()) return;
+    setMessages(prev => [
+      ...prev,
+      { sender: 'You', text: message.trim(), time: 'Just now' }
+    ]);
+    setMessage('');
+  };
+
+  const handleUploadLabReport = () => {
+    if (!uploadedFile) return;
+    const newLab: LabReportItem = {
+      id: `LAB-${Date.now().toString().slice(-3)}`,
+      name: uploadedFile.replace(/\.[^/.]+$/, ''),
+      fileName: uploadedFile,
+      uploadDate: 'Today, Just now',
+      summary: labSummary || 'AI OCR Summary: Report extracted successfully. Awaiting Dr. Maya Chen clinical review.',
+      status: 'Pending Doctor Review'
+    };
+    onUpdateConsultation({
+      ...consultation,
+      labReports: [newLab, ...consultation.labReports]
+    });
+    setUploadedFile(null);
+    setLabSummary('');
+  };
+
+  return (
+    <div className="animate-rise space-y-6">
+      <PageHeader
+        eyebrow="Consultation Thread · Case SK-2048"
+        title="Patient-Doctor Consultation"
+        detail="Chat with Dr. Maya Chen, upload your laboratory/X-ray reports, and access 24-hour follow-up."
+        action={
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setLocation('/follow-up')} icon={RefreshCw}>
+              24h Follow-up Check
+            </Button>
+            <Button onClick={() => setLocation('/booking')} icon={CalendarDays}>
+              Book In-Person Visit
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-border pb-2">
+        {(['Chat', 'Labs', 'Anatomy'] as const).map(tab => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={`rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
+              activeTab === tab
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'bg-card text-muted-foreground border border-border hover:bg-muted'
+            }`}
+          >
+            {tab === 'Chat' ? 'Care Conversation' : tab === 'Labs' ? 'Lab & X-Ray Reports' : 'Muscular Anatomical Layer'}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'Chat' && (
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
+          <Panel className="flex min-h-[520px] flex-col p-0 overflow-hidden">
+            <div className="border-b border-border bg-card p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-full bg-sidebar font-bold text-sidebar-primary text-sm">
+                  MC
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">Dr. Maya Chen (MBBS, FCPS)</h3>
+                  <p className="text-xs text-primary flex items-center gap-1">
+                    <StatusDot /> Online · Consultation Active
+                  </p>
+                </div>
+              </div>
+              <Badge tone="teal">{consultation.region}</Badge>
+            </div>
+
+            <div className="scrollbar-thin flex-1 space-y-4 overflow-auto bg-muted/20 p-5">
+              {messages.map((m, idx) => (
+                <div
+                  key={idx}
+                  className={`max-w-[85%] rounded-2xl p-4 text-sm leading-relaxed ${
+                    m.sender === 'You'
+                      ? 'ml-auto rounded-tr-sm bg-primary text-primary-foreground'
+                      : 'rounded-tl-sm border border-border bg-card shadow-sm'
+                  }`}
+                >
+                  <div className="mb-1 font-mono text-[10px] opacity-70 uppercase">{m.sender} · {m.time}</div>
+                  <p>{m.text}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2 border-t border-border p-4 bg-card">
+              <input
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Write a message to Dr. Chen…"
+                className="min-h-12 flex-1 rounded-xl border border-border bg-background px-4 text-sm outline-none ring-primary/20 placeholder:text-muted-foreground focus:ring-2"
+              />
+              <Button onClick={handleSendMessage} icon={Send}>
+                Send
+              </Button>
+            </div>
+          </Panel>
+
+          <div className="space-y-4">
+            <Panel className="p-5">
+              <SectionLabel><ShieldCheck size={14} /> Case Summary</SectionLabel>
+              <h4 className="text-base font-bold">{consultation.region}</h4>
+              <p className="text-xs text-muted-foreground">Coordinates: {consultation.point}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge tone="teal">Primary Muscle: {consultation.candidateMuscles[0]?.name}</Badge>
+                <Badge tone="lime">Safety Gate: SAFE</Badge>
+              </div>
+
+              <div className="mt-4 border-t border-border pt-3 space-y-2 text-xs text-muted-foreground">
+                <p><strong>Report Status:</strong> {consultation.reportSentToDoctor ? '✓ Transmitted to Doctor Console' : 'Local Draft'}</p>
+                <p><strong>Diet Guidance:</strong> {consultation.dietState.replaceAll('_', ' ')}</p>
+                <p><strong>Follow-Up:</strong> {consultation.followUpStatus === 'improving' ? 'Improving' : 'Due in 24 hours'}</p>
+              </div>
+            </Panel>
+
+            <Panel className="p-5">
+              <SectionLabel><CalendarDays size={14} /> In-Thread Appointment Shortcut</SectionLabel>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                If your pain increases or async messaging is not sufficient, book an in-person slot immediately.
+              </p>
+              <Button className="mt-3 w-full text-xs" onClick={() => setLocation('/booking')} icon={CalendarDays}>
+                Book In-Person Clinic Visit
+              </Button>
+            </Panel>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: LAB REPORTS SUBMISSION */}
+      {activeTab === 'Labs' && (
+        <Panel className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <SectionLabel><UploadCloud size={14} /> Module 12 · Patient Lab Submission</SectionLabel>
+              <h3 className="text-xl font-bold">Submit Your Laboratory & Imaging Reports</h3>
+              <p className="text-xs text-muted-foreground">
+                Upload your blood test, MRI, or X-ray reports. Our OCR pipeline extracts summary text for Dr. Maya Chen to review.
+              </p>
+            </div>
+            <Badge tone="teal">Doctor Reviewed</Badge>
+          </div>
+
+          {/* Upload Widget */}
+          <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-6 text-center">
+            <UploadCloud size={32} className="mx-auto text-primary" />
+            <h4 className="mt-2 text-sm font-bold text-foreground">Select Lab Report to Upload</h4>
+            <p className="text-xs text-muted-foreground mt-1">Accepts PDF, DICOM, or high-resolution photos</p>
+
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {['complete_blood_count.pdf', 'lumbar_xray_scan.png', 'mri_spine_report.pdf'].map(file => (
+                <button
+                  key={file}
+                  type="button"
+                  onClick={() => {
+                    setUploadedFile(file);
+                    setLabSummary(`Extracted values from ${file}: Normal limits with mild inflammatory markers.`);
+                  }}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${
+                    uploadedFile === file
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border bg-card text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {file}
+                </button>
+              ))}
+            </div>
+
+            {uploadedFile && (
+              <div className="mt-4 max-w-md mx-auto space-y-3">
+                <input
+                  value={labSummary}
+                  onChange={e => setLabSummary(e.target.value)}
+                  placeholder="Optional patient note about this test…"
+                  className="h-10 w-full rounded-xl border border-border bg-background px-3 text-xs outline-none"
+                />
+                <Button onClick={handleUploadLabReport} icon={UploadCloud} className="w-full text-xs">
+                  Upload "{uploadedFile}" for Doctor Review
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Existing Lab Reports */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-bold text-foreground">Attached Laboratory Documents</h4>
+            {consultation.labReports.map(report => (
+              <div key={report.id} className="rounded-xl border border-border p-4 bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h5 className="text-sm font-bold text-foreground">{report.name}</h5>
+                      <span className="font-mono text-[10px] text-muted-foreground">({report.fileName})</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{report.summary}</p>
+                    <p className="text-[10px] font-mono text-primary mt-1">Uploaded: {report.uploadDate}</p>
+                  </div>
+                </div>
+                <Badge tone={report.status === 'Approved by Doctor' ? 'teal' : 'lime'}>
+                  {report.status}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      {/* TAB 3: ANATOMY VISUALIZATION */}
+      {activeTab === 'Anatomy' && (
+        <Panel className="space-y-6">
+          <SectionLabel><Move3d size={14} /> Muscular Anatomical Layer</SectionLabel>
+          <div className="grid gap-6 md:grid-cols-[.9fr_1.1fr]">
+            <div className="relative mx-auto w-full max-w-[340px] overflow-hidden rounded-xl border border-border bg-card">
+              <img src="/muscular_anatomy_body.jpg" alt="Muscular anatomy" className="w-full object-cover" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">{consultation.region}</h3>
+              <p className="font-mono text-xs text-muted-foreground">{consultation.taxonomy} · {consultation.point}</p>
+              <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 text-xs leading-relaxed text-muted-foreground">
+                <strong className="text-foreground">Clinical Continuity:</strong> The pinpoint coordinates captured during intake remain bound to this consultation thread. Dr. Maya Chen sees the exact anatomical sub-mesh.
+              </div>
+
+              <div className="mt-5 space-y-2">
+                <h4 className="text-sm font-bold">Narrowed Muscle Structures:</h4>
+                {consultation.candidateMuscles.map(cand => (
+                  <div key={cand.name} className="rounded-xl border border-border p-3 text-xs">
+                    <div className="flex justify-between font-bold text-foreground">
+                      <span>{cand.name}</span>
+                      <span className="text-primary">{cand.confidence}% match</span>
+                    </div>
+                    <p className="text-muted-foreground italic font-mono mt-0.5">{cand.latinName}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------
+   FOLLOW-UP SCREEN (24-HOUR CHECK-IN WINDOW)
+-------------------------------------------------------------- */
+function FollowUpPage({
+  setLocation,
+  consultation,
+  onUpdateConsultation
+}: {
+  setLocation: (path: string) => void;
+  consultation: ConsultationState;
+  onUpdateConsultation: (next: ConsultationState) => void;
+}) {
+  const [status, setStatus] = useState<'improving' | 'stable' | 'worse'>(
+    consultation.followUpStatus === 'pending' ? 'improving' : consultation.followUpStatus
+  );
+  const [note, setNote] = useState(consultation.followUpNote || '');
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSaveFollowUp = () => {
+    onUpdateConsultation({
+      ...consultation,
+      followUpStatus: status,
+      followUpNote: note
+    });
+    setSubmitted(true);
+  };
+
+  return (
+    <div className="mx-auto max-w-3xl animate-rise space-y-6">
+      <button
+        onClick={() => setLocation('/thread')}
+        className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft size={16} /> Back to Consultation Thread
+      </button>
+
+      <PageHeader
+        eyebrow="Continuity Check · Module 19"
+        title="24-Hour Condition Follow-Up"
+        detail="Tell your care team how your muscles feel 24 hours after the initial guidance and exercises."
+        action={<Badge tone="teal"><RefreshCw size={14} /> 24h Check-in Window</Badge>}
+      />
+
+      <Panel className="space-y-6">
+        {submitted ? (
+          <div className="py-8 text-center space-y-3">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground">
+              <Check size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-foreground">Follow-Up Recorded Successfully</h3>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              Your response has been sent to Dr. Maya Chen and updated on the care timeline.
+            </p>
+            <Button className="mt-4" onClick={() => setLocation('/thread')} icon={MessageSquare}>
+              Return to Consultation
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <div>
+              <h3 className="text-lg font-bold text-foreground">
+                Compared to yesterday, how is your {consultation.region} feeling?
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Select the option that best describes your change in pain or mobility:
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                { id: 'improving', title: 'Feeling Better', desc: 'Less stiffness and easier movement', tone: 'teal' as const },
+                { id: 'stable', title: 'About the Same', desc: 'No significant change in discomfort', tone: 'lime' as const },
+                { id: 'worse', title: 'Worse or Spreading', desc: 'Increased pain or new symptoms', tone: 'coral' as const },
+              ].map(item => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setStatus(item.id as any)}
+                  className={`rounded-2xl border p-4 text-left transition-all ${
+                    status === item.id
+                      ? item.id === 'worse'
+                        ? 'border-destructive bg-destructive/10 ring-2 ring-destructive/20'
+                        : 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                      : 'border-border bg-card hover:bg-muted'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-foreground">{item.title}</span>
+                    <Badge tone={item.tone}>{item.id}</Badge>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">{item.desc}</p>
+                </button>
+              ))}
+            </div>
+
+            {status === 'worse' && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-xs leading-relaxed text-destructive font-semibold">
+                ⚠️ Since your condition has worsened, we recommend scheduling an urgent in-person doctor consultation.
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold text-foreground mb-1">Detailed Progress Note for Doctor</label>
+              <textarea
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                placeholder="e.g. Discomfort eased after gentle walking, but still notice tightness when getting out of bed..."
+                className="min-h-28 w-full rounded-xl border border-border bg-background p-3 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            <div className="flex items-center justify-between border-t border-border pt-4">
+              <Button variant="ghost" onClick={() => setLocation('/thread')}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveFollowUp} icon={Check}>
+                Submit 24-Hour Update
+              </Button>
+            </div>
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------
+   DOCTOR DASHBOARD (UNCLUTTERED, ALIGNED WITH PATIENT FLOW)
+-------------------------------------------------------------- */
+function DoctorDashboard({
+  setLocation,
+  consultation,
+  onUpdateConsultation
+}: {
+  setLocation: (path: string) => void;
+  consultation: ConsultationState;
+  onUpdateConsultation?: (next: ConsultationState) => void;
+}) {
+  const [activeTab, setActiveTab] = useState<'Triage' | 'Differential' | 'Labs' | 'Schedule'>('Triage');
+  const [rxNotes, setRxNotes] = useState('');
+  const [rxApproved, setRxApproved] = useState(false);
+
+  return (
+    <div className="animate-rise space-y-6">
+      <PageHeader
+        eyebrow="Clinician Console · Credentialed Access"
+        title="Doctor Care Command & Triage"
+        detail="Review AI-transmitted symptom intakes, evaluate muscle-specific differentials, sign off on lab reports, and manage appointment requests."
+        action={<Badge tone="coral"><Stethoscope size={14} /> Dr. Maya Chen · Orthopedic Surgery</Badge>}
+      />
+
+      {/* Top Overview Cards - Clean & Accessible */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Metric label="Cases Awaiting Review" value="03" note="1 with escalated visit" icon={ClipboardCheck} />
+        <Metric label="Red-Flag Watch" value="00" note="All cleared via Severity Gate" icon={ShieldCheck} tone="teal" />
+        <Metric label="Lab Reports Pending" value={String(consultation.labReports.filter(l => l.status.includes('Pending')).length || 1)} note="Requires doctor sign-off" icon={FileText} tone="lime" />
+        <Metric label="Upcoming Clinic Visits" value="04" note="Next: Tomorrow 09:30 AM" icon={CalendarDays} />
+      </div>
+
+      {/* Modern Decluttered Tab Navigation */}
+      <div className="flex flex-wrap gap-2 border-b border-border pb-2">
+        {(['Triage', 'Differential', 'Labs', 'Schedule'] as const).map(tab => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+              activeTab === tab
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'bg-card text-muted-foreground border border-border hover:bg-muted'
+            }`}
+          >
+            {tab === 'Triage' ? 'Patient Intake Triage' : tab === 'Differential' ? 'Ranked Differential' : tab === 'Labs' ? 'Submitted Lab Reports' : 'Clinic Schedule & Slots'}
+          </button>
+        ))}
+      </div>
+
+      {/* TAB 1: PATIENT INTAKE TRIAGE */}
+      {activeTab === 'Triage' && (
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
+          <Panel className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <SectionLabel><FileCheck2 size={14} /> Incoming Clinical Report · Case SK-2048</SectionLabel>
+                <h3 className="text-xl font-bold text-foreground">Aisha Rahman · {consultation.region}</h3>
+                <p className="text-xs text-muted-foreground">32-year-old female · Report transmitted via patient intake portal</p>
+              </div>
+              <Badge tone="teal">Intake Received</Badge>
+            </div>
+
+            {/* Muscle Map Snapshot & Depth */}
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+              <span className="text-xs font-bold text-primary uppercase tracking-wider block">
+                1. Muscle Pinpoint & Layer Filter
+              </span>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div><span className="text-muted-foreground">Selected Muscle Area:</span> <strong className="text-foreground block">{consultation.region}</strong></div>
+                <div><span className="text-muted-foreground">Pinpoint Coordinate:</span> <strong className="text-foreground block">{consultation.point}</strong></div>
+                <div><span className="text-muted-foreground">Tissue Depth:</span> <strong className="text-foreground block">{consultation.depth} Tissue Layer</strong></div>
+                <div><span className="text-muted-foreground">Anatomical Code:</span> <strong className="text-foreground block">{consultation.taxonomy}</strong></div>
+              </div>
+            </div>
+
+            {/* AI Cross-Questioning Summary */}
+            <div className="rounded-xl border border-border bg-card p-4 space-y-2 text-xs">
+              <span className="font-bold text-foreground block uppercase tracking-wider text-[11px] text-primary">
+                2. AI Diagnostic Cross-Questioning Summary
+              </span>
+              <div className="space-y-1.5 text-muted-foreground leading-relaxed">
+                <p>• <strong>Onset:</strong> {consultation.deepeningAnswers['Onset & Cause'] || '3-5 days ago, lifting heavy groceries'}</p>
+                <p>• <strong>Aggravating:</strong> {consultation.deepeningAnswers['Aggravating factor'] || 'Prolonged sitting & forward flexion'}</p>
+                <p>• <strong>Relieving:</strong> {consultation.deepeningAnswers['Relieving factor'] || 'Gentle walking & heat therapy'}</p>
+              </div>
+            </div>
+
+            {/* Red-Flag Safety Gate History */}
+            <div className="rounded-xl border border-border bg-card p-4 space-y-2 text-xs">
+              <span className="font-bold text-foreground block uppercase tracking-wider text-[11px] text-primary">
+                3. Severity Gate Screening Log (Module 3 & 4)
+              </span>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Badge tone="teal">Bilateral Weakness: No</Badge>
+                <Badge tone="teal">Bowel/Bladder: Normal</Badge>
+                <Badge tone="teal">Major Trauma: No</Badge>
+                <Badge tone="teal">Systemic Fever/Chills: No</Badge>
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-wrap gap-2.5">
+              <Button onClick={() => setLocation('/thread')} icon={MessageSquare} className="text-xs">
+                Open Patient Consultation Thread
+              </Button>
+              <Button variant="secondary" onClick={() => setActiveTab('Differential')} icon={Brain} className="text-xs">
+                View Differential
+              </Button>
+            </div>
+          </Panel>
+
+          {/* Right Column: Quick Doctor Actions */}
+          <div className="space-y-5">
+            <Panel className="p-5 space-y-3">
+              <SectionLabel><HeartPulse size={14} /> Care Plan Review</SectionLabel>
+              <h4 className="text-sm font-bold text-foreground">Diet & Mobility Advisory</h4>
+              <p className="text-xs text-muted-foreground">
+                Patient selected <strong>{consultation.dietState.replaceAll('_', ' ')}</strong> for the localized Pakistani anti-inflammatory food plan.
+              </p>
+              <div className="rounded-lg bg-muted/30 p-2.5 text-xs text-muted-foreground">
+                Current guidance: Adrak & Haldi tea + leafy greens. No contraindicating comorbidities reported.
+              </div>
+            </Panel>
+
+            <Panel className="p-5 space-y-3">
+              <SectionLabel><CalendarDays size={14} /> In-Person Visit Request</SectionLabel>
+              <h4 className="text-sm font-bold text-foreground">Clinic Slot Status</h4>
+              <p className="text-xs text-muted-foreground">
+                {consultation.escalatedToAppointment
+                  ? 'Aisha has escalated her care to an in-person physical examination.'
+                  : 'Async messaging active. Aisha can book an in-person visit at any time.'}
+              </p>
+              <div className="p-2.5 rounded-lg border border-border text-xs">
+                <span className="font-bold">Allocated Slot: Tomorrow 09:30 AM</span>
+                <p className="text-muted-foreground mt-0.5">Shifa Care Hub · Room 4B</p>
+              </div>
+            </Panel>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: RANKED DIFFERENTIAL DIAGNOSIS (MODULE 9) */}
+      {activeTab === 'Differential' && (
+        <Panel className="space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <SectionLabel><Brain size={14} /> Module 9 · Doctor-Facing Differential Pipeline</SectionLabel>
+              <h3 className="text-xl font-bold text-foreground">Multi-Candidate Branching & Hypotheses</h3>
+              <p className="text-xs text-muted-foreground">
+                Generated from structured intake coordinates, muscle narrowing, and ICD-10 evidence corpora. Restricted to clinician review.
+              </p>
+            </div>
+            <Badge tone="coral">Clinician Eyes Only</Badge>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            {/* Hypotheses Cards */}
+            <div className="rounded-xl border border-border p-4 bg-card shadow-sm space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                  1. Lumbar Paraspinal Myofascial Strain (Primary Candidate)
+                </span>
+                <span className="font-mono text-xs font-bold text-primary">91% Fit</span>
+              </div>
+              <p className="text-xs text-foreground font-medium">
+                Correlated with {consultation.candidateMuscles[0]?.name || 'Erector Spinae'} pinpoint localization.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Consistent with acute load strain, worse on extension, absence of neurological deficit. Rule out secondary facet irritation.
+              </p>
+              <div className="font-mono text-[10px] text-muted-foreground pt-1 border-t border-border/60">
+                Provenance: ICD-10-CM M54.50 · StatPearls Lumbosacral Strain Protocol
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border p-4 bg-card shadow-sm space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                  2. Quadratus Lumborum Trigger Irritation (Secondary Branch)
+                </span>
+                <span className="font-mono text-xs font-bold text-primary">82% Fit</span>
+              </div>
+              <p className="text-xs text-foreground font-medium">
+                Correlated with {consultation.candidateMuscles[1]?.name || 'Quadratus Lumborum'} deep layer.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Lateral iliac crest referral mimicry, unilateral trunk lateral flexion restriction.
+              </p>
+              <div className="font-mono text-[10px] text-muted-foreground pt-1 border-t border-border/60">
+                Provenance: Travell & Simons Myofascial Trigger Manual
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-xs">
+              <span className="font-bold text-primary block mb-1">Clinician Action Plan:</span>
+              <p className="text-muted-foreground">
+                Prescribe low-load diaphragmatic breathing and gentle pelvic rocking. Re-evaluate at 24-hour follow-up.
+              </p>
+            </div>
+          </div>
+        </Panel>
+      )}
+
+      {/* TAB 3: SUBMITTED LAB REPORTS */}
+      {activeTab === 'Labs' && (
+        <Panel className="space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <SectionLabel><FileText size={14} /> Module 12 · Patient Uploaded Reports</SectionLabel>
+              <h3 className="text-xl font-bold text-foreground">Review & Sign Off on Patient Labs</h3>
+              <p className="text-xs text-muted-foreground">
+                Review OCR-extracted summaries and authorize approved clinical records.
+              </p>
+            </div>
+            <Badge tone="teal">Pending Doctor Gate</Badge>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            {consultation.labReports.map(report => (
+              <div key={report.id} className="rounded-xl border border-border p-5 bg-card space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                      <FileText size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground">{report.name}</h4>
+                      <p className="text-xs text-muted-foreground">{report.fileName} · Uploaded {report.uploadDate}</p>
+                    </div>
+                  </div>
+                  <Badge tone={report.status.includes('Approved') ? 'teal' : 'lime'}>
+                    {report.status}
+                  </Badge>
+                </div>
+
+                <div className="rounded-lg bg-muted/30 p-3 text-xs text-foreground/90 leading-relaxed">
+                  <strong>AI OCR Extracted Summary:</strong> {report.summary}
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <Button variant="secondary" className="text-xs min-h-9 px-3" onClick={() => alert('Viewing full diagnostic image scan.')}>
+                    View Original Document
+                  </Button>
+                  <Button className="text-xs min-h-9 px-3" icon={Check} onClick={() => alert('Lab report approved and marked in patient consultation record.')}>
+                    Approve & Sign Off
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      {/* TAB 4: CLINIC SCHEDULE & SLOTS */}
+      {activeTab === 'Schedule' && (
+        <Panel className="space-y-5">
+          <SectionLabel><CalendarDays size={14} /> Clinic Timetable & In-Person Appointments</SectionLabel>
+          <h3 className="text-xl font-bold text-foreground">Tomorrow's Clinical Queue</h3>
+
+          <div className="space-y-3">
+            {[
+              { time: '09:30 AM', patient: 'Aisha Rahman (SK-2048)', type: 'Lower Back Muscle Strain', status: 'Confirmed' },
+              { time: '11:00 AM', patient: 'Kamran Ali', type: 'Rotator Cuff Follow-up', status: 'Confirmed' },
+              { time: '02:30 PM', patient: 'Zainab Bibi', type: 'Patellar Tendinopathy', status: 'Available' },
+              { time: '04:00 PM', patient: 'Hamza Sheikh', type: 'Cervical Spine Assessment', status: 'Confirmed' },
+            ].map(item => (
+              <div key={item.time} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4 bg-card">
+                <div className="flex items-center gap-4">
+                  <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg">
+                    {item.time}
+                  </span>
+                  <div>
+                    <h4 className="text-sm font-bold text-foreground">{item.patient}</h4>
+                    <p className="text-xs text-muted-foreground">{item.type}</p>
+                  </div>
+                </div>
+                <Badge tone={item.status === 'Confirmed' ? 'teal' : 'neutral'}>
+                  {item.status}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------
+   PHYSIO DASHBOARD (UNCLUTTERED, ALIGNED WITH PATIENT FLOW)
+-------------------------------------------------------------- */
+function PhysioDashboard({ setLocation }: { setLocation: (path: string) => void }) {
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  const [sessionNote, setSessionNote] = useState('');
+  const [sessionTolerance, setSessionTolerance] = useState<'Optimal' | 'Mild Discomfort' | 'Intolerant'>('Optimal');
+
+  return (
+    <div className="animate-rise space-y-6">
+      <PageHeader
+        eyebrow="Physiotherapy Care Board · Movement Lane"
+        title="Active Movement Plans & Clinical Feedback"
+        detail="Monitor patient exercise tolerance, provide structured session notes back to doctor threads, and observe red-flag safety boundaries."
+        action={<Badge tone="lime"><Activity size={14} /> Leo Martins · Lead MSK Physiotherapist</Badge>}
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
+        {/* Left Column: Active Patient Case & Exercises */}
+        <div className="space-y-6">
+          <Panel className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <SectionLabel><UsersRound size={14} /> Case SK-2048 · Active Session</SectionLabel>
+                <h3 className="text-xl font-bold text-foreground">Aisha Rahman · Lower Back Care Plan</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Referred by Dr. Maya Chen · Severity Gate: SAFE</p>
+              </div>
+              <Badge tone="teal">Cleared for Loading</Badge>
+            </div>
+
+            {/* Prescribed Exercises */}
+            <div className="space-y-3 pt-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                Prescribed Tier A & B Exercise Protocols
+              </span>
+
+              {[
+                { name: '90/90 Diaphragmatic Breathing & Core Brace', dose: '2 minutes relaxed pacing', goal: 'Reduce paraspinal muscle hypertonicity' },
+                { name: 'Pelvic Tilts & Lumbar Rocking', dose: '2 sets × 8 controlled reps', goal: 'Gentle facet joint mobilization' },
+                { name: 'Straight Leg Activation & Wall Slide', dose: '1 set × 6 slow reps', goal: 'Promote gluteal drive without lumbar hyperextension' }
+              ].map(ex => (
+                <div key={ex.name} className="flex items-start justify-between gap-3 rounded-xl border border-border p-4 bg-muted/20">
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
+                      <Play size={15} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground">{ex.name}</h4>
+                      <p className="font-mono text-[11px] text-primary mt-0.5">{ex.dose}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{ex.goal}</p>
+                    </div>
+                  </div>
+                  <Badge tone="teal">Active</Badge>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2 flex gap-2">
+              <Button onClick={() => setLocation('/thread')} icon={MessageSquare} className="text-xs">
+                Open Patient Consultation Thread
+              </Button>
+            </div>
+          </Panel>
+        </div>
+
+        {/* Right Column: Physio Feedback Console */}
+        <div className="space-y-6">
+          <Panel className="p-6 space-y-4">
+            <SectionLabel><ClipboardCheck size={14} /> Module 13 · Session Feedback Loop</SectionLabel>
+            <h4 className="text-base font-bold text-foreground">Submit Post-Session Feedback</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Notes submitted here are directly attached to Dr. Maya Chen's consultation timeline for shared continuity.
+            </p>
+
+            <div className="space-y-3 pt-1">
+              <label className="block text-xs font-bold text-foreground">Patient Tolerance Level</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['Optimal', 'Mild Discomfort', 'Intolerant'] as const).map(tol => (
+                  <button
+                    key={tol}
+                    type="button"
+                    onClick={() => setSessionTolerance(tol)}
+                    className={`rounded-xl border p-2 text-xs font-bold transition-all ${
+                      sessionTolerance === tol
+                        ? tol === 'Intolerant'
+                          ? 'border-destructive bg-destructive text-destructive-foreground'
+                          : 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border bg-card hover:bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {tol}
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-1">Clinical Observation Notes</label>
+                <textarea
+                  value={sessionNote}
+                  onChange={e => setSessionNote(e.target.value)}
+                  placeholder="e.g. Lumbar flexion improved by 15 degrees. No radicular symptoms observed..."
+                  className="min-h-24 w-full rounded-xl border border-border bg-background p-3 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              <Button
+                onClick={() => {
+                  setFeedbackSent(true);
+                  setTimeout(() => setFeedbackSent(false), 3500);
+                }}
+                icon={Check}
+                className="w-full text-xs"
+              >
+                Send Feedback to Doctor Thread
+              </Button>
+
+              {feedbackSent && (
+                <p className="text-xs font-bold text-primary text-center">
+                  ✓ Session feedback attached to Case SK-2048 consultation record.
+                </p>
+              )}
+            </div>
+          </Panel>
+        </div>
       </div>
     </div>
-    <div className="flex flex-col justify-between"><div><p className="font-mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Selected sub-mesh</p><div className="mt-2 flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4"><div className="mt-1 h-3 w-3 shrink-0 rounded-full bg-destructive shadow-[0_0_0_4px_hsl(var(--destructive)/.14)]" /><div><p className="text-base font-bold text-foreground">{selected.name}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Only this specific point is highlighted. The rest of the body remains unselected.</p><div className="mt-3 flex flex-wrap gap-2"><Badge tone="teal">{selected.taxonomy}</Badge><Badge tone="lime">3D point {selected.point}</Badge></div></div></div></div><div className="mt-5"><p className="mb-3 text-xs font-bold text-muted-foreground">Or choose a clinical region</p><div className="flex flex-wrap gap-2">{bodyRegions.map(item => <button key={item.name} type="button" onClick={() => setRegion(item.name)} className={`rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${item.name === selected.name ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/40'}`}>{item.name}</button>)}</div></div></div>
-  </div>;
+  );
 }
 
-function IntakePage({ setLocation, onSave }: { setLocation: (path: string) => void; onSave: (state: ConsultationState) => void }) {
-  const [step, setStep] = useState(1);
-  const [region, setRegion] = useState('Lower back');
-  const [flags, setFlags] = useState<Record<string, string>>({});
-  const questions = ['Sudden loss of strength or feeling in both legs?', 'New loss of bladder or bowel control?', 'A fall, impact, or other significant injury?', 'Fever, chills, or feeling unusually unwell?'];
-  const acute = Object.values(flags).some(value => value === 'yes' || value === 'unsure');
-  const answerCount = Object.keys(flags).length;
-  const gateReady = answerCount === questions.length;
-  const saveAndOpenConsultation = () => {
-    const selected = bodyRegions.find(item => item.name === region) ?? bodyRegions[3];
-    onSave({ region: selected.name, taxonomy: selected.taxonomy, point: selected.point, safetyAnswers: flags });
-    setLocation('/thread');
-  };
-  return <div className="mx-auto max-w-5xl animate-rise">
-     <button data-testid="button-back-dashboard" onClick={() => setLocation('/')} className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={16} /> Back to home</button>
-    <PageHeader eyebrow="New symptom report · Safety-led intake" title="Let’s understand the change." detail="A few focused questions help your care team see the pattern. This is not a diagnosis, and you can stop at any point." />
-    <div className="mb-8 flex items-center gap-2">{['Body region', 'Red flags', 'Safety gate', 'AI direction', 'Matching'].map((label, i) => <div key={label} className="flex flex-1 items-center gap-2">{i > 0 && <div className={`h-px flex-1 ${step > i ? 'bg-primary' : 'bg-border'}`} />}<div className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border text-xs font-bold ${step > i + 1 ? 'border-primary bg-primary text-primary-foreground' : step === i + 1 ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'}`}>{step > i + 1 ? <Check size={14} /> : i + 1}</div><span className={`hidden text-xs font-bold sm:block ${step === i + 1 ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span></div>)}</div>
-     {step === 1 && <Panel className="p-6 md:p-8"><SectionLabel><Move3d size={13} /> Step 01 / Body region</SectionLabel><h2 className="text-2xl font-bold tracking-[-.04em]">Where do you feel the change?</h2><p className="mt-2 text-sm text-muted-foreground">Tap a specific point on the 3D model. ShifaKinetix records the clinical region, taxonomy, and exact coordinate for the rest of your care journey.</p><BodyRegionPicker region={region} setRegion={setRegion} /><div className="mt-8 flex items-center justify-between border-t border-border pt-5"><span className="text-xs text-muted-foreground">Selected: <strong className="text-foreground">{region}</strong></span><Button onClick={() => setStep(2)} icon={ArrowRight} testId="button-intake-next-region">Continue</Button></div></Panel>}
-    {step === 2 && <Panel className="p-6 md:p-8"><SectionLabel><ShieldCheck size={13} /> Step 02 / Red-flag screen</SectionLabel><div className="flex flex-col justify-between gap-4 md:flex-row"><div><h2 className="text-2xl font-bold tracking-[-.04em]">Safety questions, answered plainly.</h2><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">These fixed questions are used consistently for every report. “Not sure” always gets a clinician review.</p></div><Badge tone="coral"><AlertCircle size={12} /> Do not ignore a concern</Badge></div><div className="mt-7 divide-y divide-border rounded-xl border border-border">{questions.map((question, i) => <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between" key={question}><div className="flex gap-3"><span className="font-mono text-xs text-primary">0{i + 1}</span><p className="max-w-lg text-sm font-semibold">{question}</p></div><div className="flex gap-2">{['yes', 'no', 'unsure'].map(option => <button key={option} data-testid={`button-flag-${i}-${option}`} onClick={() => setFlags({ ...flags, [question]: option })} className={`rounded-lg border px-3 py-2 text-xs font-bold capitalize transition-colors ${flags[question] === option ? option === 'yes' || option === 'unsure' ? 'border-destructive bg-destructive/10 text-destructive' : 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/40'}`}>{option === 'unsure' ? 'Not sure' : option}</button>)}</div></div>)}</div><div className="mt-7 flex items-center justify-between border-t border-border pt-5"><Button variant="ghost" onClick={() => setStep(1)} icon={ArrowLeft} testId="button-intake-back-flags">Back</Button><Button disabled={!gateReady} onClick={() => setStep(3)} icon={ArrowRight} testId="button-intake-next-flags">Review safety gate</Button></div></Panel>}
-      {step === 3 && <Panel className={`overflow-hidden p-0 ${acute ? 'border-destructive/35' : 'border-primary/30'}`}><div className={`p-6 md:p-8 ${acute ? 'bg-destructive/10' : 'bg-primary/10'}`}><div className="flex items-start gap-4"><div className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ${acute ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'}`}>{acute ? <AlertCircle size={25} /> : <ShieldCheck size={25} />}</div><div><SectionLabel>{acute ? 'Severity gate / Escalation required' : 'Severity gate / Deterministic result'}</SectionLabel><h2 className="text-3xl font-bold tracking-[-.06em]">{acute ? 'ACUTE RED FLAG' : 'SAFE TO CONTINUE'}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{acute ? 'One or more answers need a qualified clinician to review before AI guidance. We will keep your report intact and route it to the right care lane.' : 'No fixed red flags were identified in this screen. You can continue to AI-assisted direction, with clear limits and doctor oversight.'}</p></div></div></div><div className="grid gap-4 p-6 md:grid-cols-2 md:p-8">{acute ? <><div className="rounded-xl border border-destructive/25 bg-destructive/5 p-5"><h3 className="font-bold text-destructive">Recommended now</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">Seek urgent medical care if symptoms are severe, worsening, or feel unsafe. A doctor review request can be placed from this report.</p><Button className="mt-5 w-full" variant="danger" onClick={saveAndOpenConsultation} icon={Stethoscope} testId="button-request-urgent-review">Request doctor review</Button></div><div className="rounded-xl border border-border p-5"><h3 className="font-bold">Why this is escalated</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">“Not sure” is intentionally treated as a safety signal. The platform never uses AI to clear a possible red flag.</p><Button className="mt-5 w-full" variant="secondary" onClick={() => setStep(4)} icon={ArrowRight} testId="button-continue-escalated-report">Continue with review flag</Button></div></> : <><div className="rounded-xl border border-primary/25 bg-primary/5 p-5"><h3 className="font-bold text-primary">SAFE lane unlocked</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">AI may organize your story and suggest questions. It cannot diagnose, prescribe, or replace a clinician.</p><Button className="mt-5 w-full" onClick={() => setStep(4)} icon={Sparkles} testId="button-run-safe-triage">Run safe AI direction</Button></div><div className="rounded-xl border border-border p-5"><h3 className="font-bold">Your answers</h3><div className="mt-3 space-y-2">{questions.map((q, i) => <div className="flex items-center justify-between text-xs" key={q}><span className="truncate pr-3 text-muted-foreground">Question 0{i + 1}</span><Badge tone={flags[q] === 'no' ? 'teal' : 'coral'}>{flags[q]}</Badge></div>)}</div></div></>}</div><div className="border-t border-border px-6 py-4 md:px-8"><Button variant="ghost" onClick={() => setStep(2)} icon={ArrowLeft} testId="button-intake-back-gate">Recheck answers</Button></div></Panel>}
-       {step === 4 && <Panel className="flex min-h-[550px] flex-col p-0"><div className="border-b border-border p-6 md:p-8"><div className="flex flex-col justify-between gap-5 md:flex-row md:items-start"><div><SectionLabel><Sparkles size={13} /> Step 04 / AI Chat</SectionLabel><h2 className="text-2xl font-bold tracking-[-.04em]">AI Assistant</h2><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Based on your {region.toLowerCase()} report and SAFE screen, the assistant can help organize your story.</p></div><Badge tone={acute ? 'coral' : 'teal'}><StatusDot color={acute ? 'coral' : 'teal'} /> {acute ? 'Doctor review queued' : 'Doctor oversight active'}</Badge></div></div><div className="scrollbar-thin flex-1 space-y-4 overflow-auto bg-muted/40 p-5"><div className="max-w-[80%] rounded-2xl rounded-tl-sm border border-border bg-card p-4"><div className="mb-2 font-mono text-[10px] text-primary">AI ASSISTANT</div><p className="text-sm leading-6">Hello! I've reviewed your symptom report for your {region.toLowerCase()}. To help the doctor, could you describe what makes the pain better or worse?</p></div><div className="ml-auto max-w-[80%] rounded-2xl rounded-tr-sm bg-primary p-4 text-primary-foreground"><div className="mb-2 font-mono text-[10px] opacity-70">YOU</div><p className="text-sm leading-6">It hurts more when I sit for a long time. Walking slowly helps a bit.</p></div><div className="max-w-[80%] rounded-2xl rounded-tl-sm border border-border bg-card p-4"><div className="mb-2 font-mono text-[10px] text-primary">AI ASSISTANT</div><p className="text-sm leading-6">Based on what you've described, here is some general guidance. If you'd like, we can also match you with a doctor or physiotherapist for a professional assessment.</p></div><ExerciseDietGuidance /></div><div className="flex flex-col justify-between gap-3 border-t border-border p-4 sm:flex-row sm:items-center"><div className="flex flex-1 gap-2"><input placeholder="Write to AI..." className="min-h-10 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none ring-primary/20 placeholder:text-muted-foreground focus:ring-2" /><Button icon={Send} testId="button-ai-chat-send">Send</Button></div><div className="mx-2 hidden h-8 w-px bg-border sm:block" /><Button onClick={() => setStep(5)} icon={UsersRound} testId="button-open-provider-matching">Talk to Doctor</Button></div></Panel>}
-       {step === 5 && <Panel className="p-6 md:p-8"><SectionLabel><UsersRound size={13} /> Step 05 / Provider matching</SectionLabel><h2 className="text-2xl font-bold tracking-[-.04em]">Choose who joins your care.</h2><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">These verified providers can join the same consultation thread. You can request someone now or continue with your saved report.</p><div className="mt-6"><ProviderShortlist setLocation={setLocation} /></div><div className="mt-7 flex flex-col-reverse justify-between gap-3 border-t border-border pt-5 sm:flex-row sm:items-center"><Button variant="ghost" onClick={() => setStep(4)} icon={ArrowLeft} testId="button-matching-back">Back to AI direction</Button><Button onClick={saveAndOpenConsultation} icon={ArrowRight} testId="button-open-matched-thread">Continue to consultation</Button></div></Panel>}
-  </div>;
+/* -------------------------------------------------------------
+   BOOKING PAGE (SEARCHABLE DOCTOR DIRECTORY & SCHEDULING)
+-------------------------------------------------------------- */
+interface DoctorDirectoryItem {
+  id: string;
+  name: string;
+  specialty: string;
+  subSpecialty: string;
+  qualifications: string;
+  experience: string;
+  rating: number;
+  reviewsCount: number;
+  location: string;
+  distance: string;
+  consultationFee: string;
+  initials: string;
+  availableSlots: string[];
 }
+
+const verifiedDoctorsList: DoctorDirectoryItem[] = [
+  {
+    id: 'dr-maya',
+    name: 'Dr. Maya Chen',
+    specialty: 'Orthopedic Spine & Lower Limb Specialist',
+    subSpecialty: 'Spinal biomechanics, paraspinal strain, lumbar disk rehabilitation',
+    qualifications: 'MBBS, FCPS (Orthopedics), Fellowship Spine (CA)',
+    experience: '12 years exp',
+    rating: 4.9,
+    reviewsCount: 142,
+    location: 'Shifa International Care Hub · Blue Area, Islamabad',
+    distance: '2.4 km away',
+    consultationFee: '$48.00',
+    initials: 'MC',
+    availableSlots: ['Tomorrow 09:30 AM', 'Tomorrow 11:00 AM', 'Thursday 02:30 PM']
+  },
+  {
+    id: 'dr-tariq',
+    name: 'Dr. Tariq Mehmood',
+    specialty: 'Consultant Musculoskeletal & Sports Surgeon',
+    subSpecialty: 'Rotator cuff, shoulder impingement, sports ligament injury',
+    qualifications: 'MBBS, FRCS (Tr & Orth), AO Spine Fellow',
+    experience: '15 years exp',
+    rating: 4.8,
+    reviewsCount: 198,
+    location: 'Islamabad Specialist Clinic · F-8 Markaz',
+    distance: '3.8 km away',
+    consultationFee: '$50.00',
+    initials: 'TM',
+    availableSlots: ['Tomorrow 12:00 PM', 'Wednesday 03:00 PM', 'Thursday 10:30 AM']
+  },
+  {
+    id: 'dr-fatima',
+    name: 'Dr. Fatima Zahra',
+    specialty: 'Physical Medicine & Rehabilitation Specialist (Physiatrist)',
+    subSpecialty: 'Myofascial trigger points, chronic lumbar pain, non-surgical rehab',
+    qualifications: 'MBBS, FCPS (Physical Medicine & Rehabilitation)',
+    experience: '9 years exp',
+    rating: 4.9,
+    reviewsCount: 114,
+    location: 'Advanced MSK Center · Sector G-8, Islamabad',
+    distance: '4.1 km away',
+    consultationFee: '$42.00',
+    initials: 'FZ',
+    availableSlots: ['Today 05:00 PM', 'Tomorrow 10:00 AM', 'Friday 04:00 PM']
+  },
+  {
+    id: 'dr-bilal',
+    name: 'Dr. Bilal Siddiqui',
+    specialty: 'Orthopedic Trauma & Joint Reconstruction',
+    subSpecialty: 'Knee patellar tendinopathy, meniscus assessment, ankle trauma',
+    qualifications: 'MBBS, MS Orthopedics, Arthroscopy Fellow',
+    experience: '14 years exp',
+    rating: 4.7,
+    reviewsCount: 89,
+    location: 'Rawalpindi Joint Care Pavilion · Saddar, Rawalpindi',
+    distance: '8.5 km away',
+    consultationFee: '$45.00',
+    initials: 'BS',
+    availableSlots: ['Tomorrow 04:30 PM', 'Thursday 11:30 AM', 'Saturday 10:00 AM']
+  }
+];
 
 function BookingPage({ setLocation }: { setLocation: (path: string) => void }) {
-  const [provider, setProvider] = useState('maya');
-  const [slot, setSlot] = useState('tomorrow-0930');
-  const providers = [{ id: 'maya', name: 'Dr. Maya Chen', specialty: 'Musculoskeletal physician', initials: 'MC', time: 'Next available · 09:30' }, { id: 'leo', name: 'Leo Martins', specialty: 'Senior physiotherapist', initials: 'LM', time: 'Next available · 18:30' }];
-  return <div className="mx-auto max-w-5xl animate-rise"><PageHeader eyebrow="Direct access · No intake required" title="Choose your care partner." detail="Book a verified doctor or physiotherapist directly. This route bypasses symptom intake, AI, and the consultation thread until you choose to connect them." action={<Badge tone="lime"><LockKeyhole size={12} /> Direct booking lane</Badge>} /><div className="grid gap-6 lg:grid-cols-[1.1fr_.9fr]"><Panel className="p-6 md:p-8"><SectionLabel><UsersRound size={13} /> 01 / Provider</SectionLabel><div className="space-y-3">{providers.map(item => <button key={item.id} data-testid={`button-provider-${item.id}`} onClick={() => setProvider(item.id)} className={`flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all ${provider === item.id ? 'border-primary bg-primary/5 ring-2 ring-primary/10' : 'border-border hover:border-primary/40'}`}><div className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ${provider === item.id ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'} font-bold`}>{item.initials}</div><div className="min-w-0 flex-1"><div className="flex items-center gap-2 text-sm font-bold">{item.name}<Badge tone="teal"><BadgeCheck size={11} /> Verified</Badge></div><p className="mt-1 text-xs text-muted-foreground">{item.specialty}</p><p className="mt-2 font-mono text-[10px] text-primary">{item.time}</p></div>{provider === item.id && <CheckCircle2 size={19} className="text-primary" />}</button>)}</div><SectionLabel><CalendarDays size={13} /> 02 / Time</SectionLabel><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{['tomorrow-0930', 'tomorrow-1100', 'thu-1430', 'fri-1830'].map((item, i) => <button key={item} data-testid={`button-slot-${item}`} onClick={() => setSlot(item)} className={`rounded-lg border px-2 py-3 text-center text-xs font-bold ${slot === item ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:border-primary/40'}`}><div>{i < 2 ? 'Wed 08 May' : i === 2 ? 'Thu 09 May' : 'Fri 10 May'}</div><div className="mt-1 font-mono text-[10px] opacity-75">{['09:30', '11:00', '14:30', '18:30'][i]}</div></button>)}</div><div className="mt-8 rounded-xl border border-accent/70 bg-accent/40 p-4"><div className="flex gap-3"><Info size={16} className="mt-0.5 shrink-0 text-accent-foreground" /><p className="text-xs leading-5 text-accent-foreground">You can add a symptom report to this appointment later. It will never be used to delay your booking.</p></div></div></Panel><Panel className="h-fit p-6 md:p-8"><SectionLabel><ClipboardCheck size={13} /> Booking summary</SectionLabel><div className="rounded-xl bg-sidebar p-5 text-sidebar-foreground"><p className="font-mono text-[10px] uppercase tracking-[.12em] text-sidebar-primary">Verified appointment</p><h2 className="mt-3 text-xl font-bold">{providers.find(p => p.id === provider)?.name}</h2><p className="mt-1 text-sm opacity-70">{providers.find(p => p.id === provider)?.specialty}</p><div className="my-5 border-t border-sidebar-border pt-4 text-sm"><div className="flex justify-between"><span className="opacity-65">Appointment</span><strong>{slot.includes('tomorrow') ? 'Wed 08 May' : slot.includes('thu') ? 'Thu 09 May' : 'Fri 10 May'}</strong></div><div className="mt-2 flex justify-between"><span className="opacity-65">Time</span><strong>{slot.includes('0930') ? '09:30' : slot.includes('1100') ? '11:00' : slot.includes('1430') ? '14:30' : '18:30'}</strong></div><div className="mt-2 flex justify-between"><span className="opacity-65">Format</span><strong>Video consult</strong></div></div><div className="flex items-end justify-between border-t border-sidebar-border pt-4"><span className="text-xs opacity-65">Consultation fee</span><span className="text-2xl font-bold">$48.00</span></div></div><Button className="mt-5 w-full" onClick={() => setLocation('/payment')} icon={WalletCards} testId="button-proceed-payment">Continue to secure payment</Button><p className="mt-3 text-center font-mono text-[9px] uppercase tracking-[.12em] text-muted-foreground">No charge until you confirm</p></Panel></div></div>;
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSpecialty, setSelectedSpecialty] = useState('All');
+  const [selectedDoctorId, setSelectedDoctorId] = useState('dr-maya');
+  const [selectedSlot, setSelectedSlot] = useState('Tomorrow 09:30 AM');
+  const [confirmed, setConfirmed] = useState(false);
+
+  // Filtered doctors based on search & filter
+  const filteredDoctors = useMemo(() => {
+    return verifiedDoctorsList.filter(doc => {
+      const matchesSearch =
+        doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.specialty.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.subSpecialty.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.location.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesSpecialty =
+        selectedSpecialty === 'All' ||
+        (selectedSpecialty === 'Spine & Back' && doc.specialty.includes('Spine')) ||
+        (selectedSpecialty === 'Shoulder & Sports' && doc.specialty.includes('Sports')) ||
+        (selectedSpecialty === 'Rehab & Physiatry' && doc.specialty.includes('Rehabilitation')) ||
+        (selectedSpecialty === 'Knee & Joint' && doc.specialty.includes('Joint'));
+
+      return matchesSearch && matchesSpecialty;
+    });
+  }, [searchQuery, selectedSpecialty]);
+
+  const activeDoctor = verifiedDoctorsList.find(d => d.id === selectedDoctorId) || verifiedDoctorsList[0];
+
+  return (
+    <div className="mx-auto max-w-5xl animate-rise space-y-6">
+      <button onClick={() => setLocation('/')} className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground">
+        <ArrowLeft size={16} /> Back to Home
+      </button>
+
+      <PageHeader
+        eyebrow="Doctor Directory & In-Person Appointment Scheduling"
+        title="Find & Schedule with Available Specialists"
+        detail="Search verified orthopedic surgeons, spine specialists, and physiatrists with live slot selection."
+        action={<Badge tone="teal"><BadgeCheck size={14} /> PMDC Verified Registry</Badge>}
+      />
+
+      {confirmed ? (
+        <Panel className="p-8 text-center space-y-4">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground">
+            <Check size={32} />
+          </div>
+          <h3 className="text-2xl font-bold text-foreground">Appointment Confirmed with {activeDoctor.name}!</h3>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            {selectedSlot} · {activeDoctor.location}. Your muscle intake profile and red-flag screening data are linked to this visit.
+          </p>
+          <div className="pt-2 flex justify-center gap-3">
+            <Button onClick={() => setLocation('/thread')} icon={MessageSquare}>
+              Open Care Thread
+            </Button>
+            <Button variant="secondary" onClick={() => setLocation('/')} icon={ArrowLeft}>
+              Return to Dashboard
+            </Button>
+          </div>
+        </Panel>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[1.25fr_.75fr]">
+          {/* Left Column: Doctor Search, Filters & List */}
+          <div className="space-y-4">
+            {/* Search Bar & Specialty Filters */}
+            <Panel className="p-4 space-y-3">
+              <div className="relative">
+                <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search doctors by name, spine, shoulder, knee, or clinic location…"
+                  className="min-h-12 w-full rounded-xl border border-border bg-background pl-10 pr-4 text-xs outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground font-medium"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {/* Specialty Chips */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {['All', 'Spine & Back', 'Shoulder & Sports', 'Rehab & Physiatry', 'Knee & Joint'].map(spec => (
+                  <button
+                    key={spec}
+                    type="button"
+                    onClick={() => setSelectedSpecialty(spec)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                      selectedSpecialty === spec
+                        ? 'bg-primary text-primary-foreground font-bold shadow-sm'
+                        : 'bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    {spec}
+                  </button>
+                ))}
+              </div>
+            </Panel>
+
+            {/* Doctors List */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                <span>Showing <strong>{filteredDoctors.length}</strong> available specialists</span>
+                <span>Select a doctor to view slots</span>
+              </div>
+
+              {filteredDoctors.length === 0 ? (
+                <Panel className="p-8 text-center text-muted-foreground">
+                  <p className="text-sm font-semibold">No doctors found matching "{searchQuery}".</p>
+                  <Button variant="secondary" className="mt-3 text-xs" onClick={() => { setSearchQuery(''); setSelectedSpecialty('All'); }}>
+                    Reset Search Filters
+                  </Button>
+                </Panel>
+              ) : (
+                filteredDoctors.map(doc => {
+                  const isSelected = doc.id === selectedDoctorId;
+                  return (
+                    <div
+                      key={doc.id}
+                      onClick={() => {
+                        setSelectedDoctorId(doc.id);
+                        setSelectedSlot(doc.availableSlots[0]);
+                      }}
+                      className={`cursor-pointer rounded-2xl border p-5 transition-all ${
+                        isSelected
+                          ? 'border-primary bg-primary/5 ring-2 ring-primary/20 shadow-clinic'
+                          : 'border-border bg-card hover:border-primary/40 hover:bg-muted/20'
+                      }`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-sidebar font-bold text-sidebar-primary text-base">
+                          {doc.initials}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-base text-foreground">{doc.name}</h4>
+                              <Badge tone="teal">Verified</Badge>
+                            </div>
+                            <span className="font-mono text-xs font-bold text-primary">{doc.consultationFee}</span>
+                          </div>
+
+                          <p className="text-xs font-semibold text-primary mt-0.5">{doc.specialty}</p>
+                          <p className="text-[11px] text-muted-foreground mt-1 line-clamp-1">{doc.subSpecialty}</p>
+                          <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{doc.qualifications} · {doc.experience}</p>
+
+                          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-2.5 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1 font-semibold text-foreground">
+                              ⭐ {doc.rating} <span className="font-normal text-muted-foreground">({doc.reviewsCount} reviews)</span>
+                            </span>
+                            <span>📍 {doc.distance} · {doc.location.split('·')[0]}</span>
+                          </div>
+
+                          {/* Quick Slot Preview for Selected Doctor */}
+                          {isSelected && (
+                            <div className="mt-3 pt-2.5 border-t border-primary/20">
+                              <span className="block text-[11px] font-bold uppercase text-primary mb-1.5">
+                                Select Available Slot:
+                              </span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {doc.availableSlots.map(slot => (
+                                  <button
+                                    key={slot}
+                                    type="button"
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      setSelectedSlot(slot);
+                                    }}
+                                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+                                      selectedSlot === slot
+                                        ? 'bg-primary text-primary-foreground shadow-sm font-bold'
+                                        : 'bg-card border border-border text-foreground hover:bg-muted'
+                                    }`}
+                                  >
+                                    {slot}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Appointment Summary Card */}
+          <div className="space-y-4">
+            <Panel className="p-6 h-fit space-y-5 sticky top-24">
+              <SectionLabel><ClipboardCheck size={14} /> Appointment Summary</SectionLabel>
+
+              <div className="rounded-xl bg-sidebar p-5 text-sidebar-foreground space-y-3">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-sidebar-primary">
+                  Selected Specialist
+                </span>
+                <h3 className="text-xl font-bold">{activeDoctor.name}</h3>
+                <p className="text-xs opacity-75">{activeDoctor.specialty}</p>
+
+                <div className="border-t border-sidebar-border pt-3 space-y-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="opacity-70">Slot:</span>
+                    <strong className="text-sidebar-primary">{selectedSlot}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="opacity-70">Clinic:</span>
+                    <strong className="text-right text-[11px] max-w-[180px] truncate">{activeDoctor.location}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="opacity-70">Experience:</span>
+                    <strong>{activeDoctor.experience}</strong>
+                  </div>
+                  <div className="flex justify-between border-t border-sidebar-border pt-2 text-sm">
+                    <span className="opacity-70">Fee:</span>
+                    <strong className="text-lg text-sidebar-primary">{activeDoctor.consultationFee}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground leading-relaxed">
+                <strong className="text-foreground">Connected Intake Data:</strong> Your muscle map, initial screening, and AI cross-questioning notes will be instantly delivered to {activeDoctor.name}.
+              </div>
+
+              <Button
+                className="w-full text-sm"
+                onClick={() => setConfirmed(true)}
+                icon={Check}
+                testId="button-confirm-doctor-appointment"
+              >
+                Confirm Appointment ({selectedSlot})
+              </Button>
+            </Panel>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function PhysioIntakePage({ setLocation }: { setLocation: (path: string) => void }) {
-  const [step, setStep] = useState(1);
-  const [region, setRegion] = useState('Lower back');
-  const [safety, setSafety] = useState<Record<string, string>>({});
-  const questions = ['New or worsening weakness in the limb?', 'Loss of bladder or bowel control?', 'Recent surgery or significant trauma?', 'Fever, chills, or feeling systemically unwell?'];
-  const ready = Object.keys(safety).length === questions.length;
-  const escalated = Object.values(safety).some(answer => answer === 'yes' || answer === 'unsure');
-  return <div className="mx-auto max-w-5xl animate-rise">
-    <button data-testid="button-back-physio-board" onClick={() => setLocation('/physio')} className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={16} /> Back to physio board</button>
-    <PageHeader eyebrow="Physio-initiated intake · Safety before loading" title="Build context before movement." detail="This short intake lets a physiotherapist start a patient-led plan without skipping the same deterministic safety gate used across ShifaKinetix." action={<Badge tone="lime"><Activity size={12} /> Physio lane</Badge>} />
-    <div className="mb-8 flex items-center gap-2">{['Region & goal', 'Safety screen', 'Gate result'].map((label, i) => <div className="flex flex-1 items-center gap-2" key={label}>{i > 0 && <div className={`h-px flex-1 ${step > i ? 'bg-primary' : 'bg-border'}`} />}<div className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border text-xs font-bold ${step > i + 1 ? 'border-primary bg-primary text-primary-foreground' : step === i + 1 ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'}`}>{step > i + 1 ? <Check size={14} /> : i + 1}</div><span className={`hidden text-xs font-bold sm:block ${step === i + 1 ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span></div>)}</div>
-     {step === 1 && <Panel className="p-6 md:p-8"><SectionLabel><Move3d size={13} /> Step 01 / Intake context</SectionLabel><h2 className="text-2xl font-bold">Where should today’s plan focus?</h2><p className="mt-2 text-sm text-muted-foreground">Select the specific area directly on the body model before the physio safety screen begins.</p><BodyRegionPicker region={region} setRegion={setRegion} prefix="button-physio-model" /><label className="mt-6 block text-xs font-bold text-muted-foreground">Patient goal<textarea data-testid="input-physio-goal" placeholder="e.g. return to stairs, sleep comfortably, move with less hesitation" className="mt-1.5 min-h-24 w-full resize-none rounded-lg border border-border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/20" /></label><div className="mt-7 flex justify-end border-t border-border pt-5"><Button onClick={() => setStep(2)} icon={ArrowRight} testId="button-physio-intake-next">Continue to safety screen</Button></div></Panel>}
-    {step === 2 && <Panel className="p-6 md:p-8"><SectionLabel><ShieldCheck size={13} /> Step 02 / Fixed safety screen</SectionLabel><h2 className="text-2xl font-bold">Before prescribing movement, check the risk.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">The same answers are always available to the patient, physio, and doctor. A “Not sure” response routes to review.</p><div className="mt-6 divide-y divide-border rounded-xl border border-border">{questions.map((question, i) => <div className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between" key={question}><p className="max-w-xl text-sm font-semibold"><span className="mr-3 font-mono text-xs text-primary">0{i + 1}</span>{question}</p><div className="flex gap-2">{['yes', 'no', 'unsure'].map(option => <button key={option} data-testid={`button-physio-safety-${i}-${option}`} onClick={() => setSafety({ ...safety, [question]: option })} className={`rounded-lg border px-3 py-2 text-xs font-bold capitalize ${safety[question] === option ? option === 'no' ? 'border-primary bg-primary/10 text-primary' : 'border-destructive bg-destructive/10 text-destructive' : 'border-border text-muted-foreground hover:border-primary/40'}`}>{option === 'unsure' ? 'Not sure' : option}</button>)}</div></div>)}</div><div className="mt-7 flex justify-between border-t border-border pt-5"><Button variant="ghost" onClick={() => setStep(1)} icon={ArrowLeft} testId="button-physio-intake-back">Back</Button><Button disabled={!ready} onClick={() => setStep(3)} icon={ShieldCheck} testId="button-physio-intake-gate">Run safety gate</Button></div></Panel>}
-    {step === 3 && <Panel className={`overflow-hidden p-0 ${escalated ? 'border-destructive/35' : 'border-primary/30'}`}><div className={`p-6 md:p-8 ${escalated ? 'bg-destructive/10' : 'bg-primary/10'}`}><div className="flex items-start gap-4"><div className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ${escalated ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'}`}>{escalated ? <AlertCircle size={25} /> : <ShieldCheck size={25} />}</div><div><SectionLabel>{escalated ? 'Severity gate / Provider referral' : 'Severity gate / Plan permitted'}</SectionLabel><h2 className="text-3xl font-bold tracking-[-.06em]">{escalated ? 'ACUTE RED FLAG' : 'SAFE TO MOVE FORWARD'}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{escalated ? 'Pause the exercise plan and refer this patient to a doctor. The original intake stays in the shared record for review.' : `The ${region.toLowerCase()} plan can begin with low-load movement and session feedback. Stop if symptoms sharpen.`}</p></div></div></div><div className="p-6 md:p-8"><div className="grid gap-3 sm:grid-cols-3">{[['Intake', 'Recorded', FileText], ['Safety gate', escalated ? 'Referral' : 'SAFE', ShieldCheck], ['Next owner', escalated ? 'Doctor' : 'Physio', Stethoscope]].map(([a, b, Icon]) => <div className="rounded-xl border border-border p-4" key={a as string}><Icon size={16} className="text-primary" /><div className="mt-3 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">{a as string}</div><div className="mt-1 text-sm font-bold">{b as string}</div></div>)}</div><div className="mt-7 flex flex-col-reverse justify-between gap-3 border-t border-border pt-5 sm:flex-row sm:items-center"><Button variant="ghost" onClick={() => setStep(2)} icon={ArrowLeft} testId="button-physio-gate-back">Recheck answers</Button><Button variant={escalated ? 'danger' : 'primary'} onClick={() => setLocation(escalated ? '/thread' : '/physio')} icon={escalated ? Stethoscope : Activity} testId="button-physio-gate-finish">{escalated ? 'Refer to doctor' : 'Build exercise plan'}</Button></div></div></Panel>}
-  </div>;
-}
-
-const threadTabs = ['Overview', 'Chat', 'Clinical data', 'Treatment'];
-function ThreadPage({ setLocation, consultation }: { setLocation: (path: string) => void; consultation: ConsultationState }) {
-  const [tab, setTab] = useState('Overview');
-  const [message, setMessage] = useState('');
-  const [sent, setSent] = useState<string[]>([]);
-  const [imagingUploaded, setImagingUploaded] = useState(false);
-  const [imagingSent, setImagingSent] = useState(false);
-  const recordedAnswers = Object.entries(consultation.safetyAnswers);
-  const send = () => { if (!message.trim()) return; setSent([...sent, message.trim()]); setMessage(''); };
-  const tabContent: Record<string, ReactNode> = {
-     Overview: <div className="grid gap-5 lg:grid-cols-[1.25fr_.75fr]"><Panel className="p-6"><SectionLabel><FileText size={13} /> Clinical snapshot</SectionLabel><div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold tracking-[-.04em]">{consultation.region} symptom report</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">This shared snapshot carries the exact point and fixed safety answers from intake. It remains a working summary awaiting doctor sign-off.</p></div><Badge tone="teal">SAFE</Badge></div><div className="mt-7 grid gap-3 sm:grid-cols-3">{[['Reported', 'Intermittent ache'], ['Region', consultation.region], ['3D point', consultation.point]].map(([a, b]) => <div key={a} className="rounded-lg bg-muted p-3"><div className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">{a}</div><div className="mt-1 text-sm font-bold">{b}</div></div>)}</div><div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4"><div className="flex items-center justify-between"><p className="text-xs font-bold text-primary">Fixed safety screen · answers recorded</p><Badge tone="teal">{recordedAnswers.length} / 4 answered</Badge></div><div className="mt-3 grid gap-2 md:grid-cols-2">{recordedAnswers.map(([question, answer], i) => <div className="flex items-start gap-2 rounded-lg border border-border/70 bg-card p-3" key={question}><span className="font-mono text-[10px] text-primary">0{i + 1}</span><span className="flex-1 text-xs leading-4 text-muted-foreground">{question}</span><Badge tone={answer === 'no' ? 'teal' : 'coral'}>{answer === 'unsure' ? 'Not sure' : answer}</Badge></div>)}</div></div></Panel><Panel className="p-6"><SectionLabel><ShieldCheck size={13} /> Oversight chain</SectionLabel>{[['AI direction', 'Complete', 'teal'], ['Doctor review', 'In progress', 'lime'], ['Physio plan', 'Active', 'teal']].map(([a, b, c], i) => <div className="flex items-center gap-3 border-b border-border py-4 last:border-0" key={a}><div className={`grid h-8 w-8 place-items-center rounded-full ${c === 'lime' ? 'bg-accent' : 'bg-primary/10 text-primary'}`}>{i === 0 ? <Sparkles size={14} /> : i === 1 ? <Stethoscope size={14} /> : <Activity size={14} />}</div><div className="flex-1"><p className="text-sm font-bold">{a}</p><p className="text-xs text-muted-foreground">Assigned lane</p></div><Badge tone={c === 'lime' ? 'lime' : 'teal'}>{b}</Badge></div>)}<Button variant="secondary" className="mt-4 w-full" onClick={() => setLocation('/follow-up')} icon={RefreshCw} testId="button-open-follow-up">View 24-hour follow-up</Button></Panel><Panel className="p-6 lg:col-span-2"><SectionLabel><Clock3 size={13} /> Shared activity</SectionLabel><div className="grid gap-4 md:grid-cols-3">{[['08 May · 08:12', 'Dr. Maya Chen added a review note', Stethoscope], ['07 May · 18:30', 'Leo updated your exercise plan', Activity], ['06 May · 14:12', 'Safety screen recorded as SAFE', ShieldCheck]].map(([date, copy, Icon]) => <div className="flex gap-3 rounded-xl border border-border p-4" key={date as string}><Icon size={17} className="mt-0.5 text-primary" /><div><div className="font-mono text-[10px] text-muted-foreground">{date as string}</div><div className="mt-1 text-sm font-semibold">{copy as string}</div></div></div>)}</div></Panel></div>,
-     Chat: <div className="space-y-5"><Panel className="flex min-h-[550px] flex-col p-0"><div className="border-b border-border p-5"><SectionLabel><MessageSquare size={13} /> Shared consultation thread</SectionLabel><div className="flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-full bg-sidebar text-xs font-bold text-sidebar-primary">MC</div><div><p className="text-sm font-bold">Dr. Maya Chen <span className="ml-2 text-xs font-normal text-muted-foreground">Doctor</span></p><p className="flex items-center gap-1 text-xs text-primary"><StatusDot /> Usually replies within 4 hours</p></div></div></div><div className="scrollbar-thin flex-1 space-y-4 overflow-auto bg-muted/40 p-5"><div className="max-w-[80%] rounded-2xl rounded-tl-sm border border-border bg-card p-4"><div className="mb-2 font-mono text-[10px] text-primary">DR. CHEN · 08:12</div><p className="text-sm leading-6">I’ve reviewed your symptom report. The pattern looks appropriate for the gentle movement plan Leo shared. How did the first session feel?</p></div><div className="ml-auto max-w-[80%] rounded-2xl rounded-tr-sm bg-primary p-4 text-primary-foreground"><div className="mb-2 font-mono text-[10px] opacity-70">AISHA · 08:26</div><p className="text-sm leading-6">The first few minutes felt stiff, then it eased. I noticed a little pulling on the left.</p></div>{sent.map((item, i) => <div className="ml-auto max-w-[80%] rounded-2xl rounded-tr-sm bg-primary p-4 text-primary-foreground" key={`${item}-${i}`}><div className="mb-2 font-mono text-[10px] opacity-70">AISHA · NOW</div><p className="text-sm leading-6">{item}</p></div>)}<div className="flex max-w-[80%] gap-2 rounded-2xl rounded-tl-sm border border-accent/70 bg-accent/50 p-4"><Sparkles size={15} className="mt-0.5 shrink-0" /><p className="text-xs leading-5">AI note: A new symptom can always trigger a fresh safety screen from Follow-Up.</p></div></div><div className="flex gap-2 border-t border-border p-4"><input data-testid="input-thread-message" value={message} onChange={e => setMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} placeholder="Write to your care team…" className="min-h-10 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none ring-primary/20 placeholder:text-muted-foreground focus:ring-2" /><Button onClick={send} icon={Send} testId="button-send-message">Send</Button></div></Panel><ExerciseDietGuidance /></div>,
-     '3D Body Map': <Panel className="p-6"><SectionLabel><Move3d size={13} /> Spatial symptom map</SectionLabel><div className="grid gap-6 lg:grid-cols-[.9fr_1.1fr]"><div className="clinical-grid flex min-h-[400px] items-center justify-center rounded-xl border border-border bg-muted/30"><div className="relative flex h-[310px] w-40 justify-center"><div className="absolute top-0 h-14 w-14 rounded-full border-2 border-primary/50 bg-primary/10" /><div className="absolute top-14 h-36 w-24 rounded-[45%] border-2 border-primary/50 bg-primary/10" /><div className="absolute top-14 -left-3 h-32 w-9 -rotate-6 rounded-full border-2 border-primary/40 bg-primary/5" /><div className="absolute top-14 -right-3 h-32 w-9 rotate-6 rounded-full border-2 border-primary/40 bg-primary/5" /><div className="absolute top-44 left-4 h-32 w-10 rotate-2 rounded-full border-2 border-primary/40 bg-primary/5" /><div className="absolute top-44 right-4 h-32 w-10 -rotate-2 rounded-full border-2 border-primary/40 bg-primary/5" /><div className="absolute top-[130px] left-1/2 h-14 w-20 -translate-x-1/2 rounded-full border-2 border-destructive bg-destructive/30 shadow-[0_0_0_8px_hsl(4_77%_61%/.12)]" /><span className="absolute left-[calc(50%+46px)] top-[140px] whitespace-nowrap rounded bg-card px-2 py-1 font-mono text-[9px] text-destructive shadow-sm">Selected point</span></div></div><div><h2 className="text-xl font-bold">{consultation.region}</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">The same highlighted point from intake is preserved for your care team.</p><div className="mt-4 flex flex-wrap gap-2"><Badge tone="teal">{consultation.taxonomy}</Badge><Badge tone="lime">3D point {consultation.point}</Badge></div><div className="mt-6 space-y-3">{[['Intensity', '3 / 10', 'teal'], ['Sensation', 'Dull / pulling', 'lime'], ['Spread', 'Does not travel below knee', 'teal']].map(([a, b, t]) => <div className="flex items-center justify-between rounded-lg border border-border p-3" key={a}><span className="text-xs text-muted-foreground">{a}</span><Badge tone={t as 'teal' | 'lime'}>{b}</Badge></div>)}</div><Button variant="secondary" className="mt-5" onClick={() => setTab('Chat')} icon={MessageSquare} testId="button-discuss-body-map">Discuss with care team</Button></div></div></Panel>,
-     Reports: <div className="space-y-5"><LabReportsPanel /><DocumentList title="Care documents" icon={FileText} items={['Structured symptom intake · 06 May', 'AI review brief · 06 May', '24-hour progress note · Due today']} /></div>,
-     Imaging: <Panel className="p-6"><SectionLabel><Image size={13} /> Patient imaging</SectionLabel>{imagingUploaded ? <div className="rounded-xl border border-primary/25 bg-primary/5 p-5"><div className="flex items-start gap-3"><div className="grid h-10 w-10 place-items-center rounded-lg bg-primary text-primary-foreground"><Image size={18} /></div><div><p className="font-bold">Knee X-ray · ready for review</p><p className="mt-1 text-xs text-primary">{imagingSent ? 'Sent to Dr. Maya Chen' : 'Readability checks passed · blur, exposure, and framing look good'}</p></div></div><Button className="mt-5" variant={imagingSent ? 'ghost' : 'primary'} disabled={imagingSent} onClick={() => setImagingSent(true)} icon={imagingSent ? Check : Send} testId="button-send-imaging">{imagingSent ? 'Sent to doctor' : 'Send to doctor'}</Button></div> : <div className="flex min-h-[350px] items-center justify-center rounded-xl bg-sidebar p-8 text-sidebar-foreground"><div className="text-center"><div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-sidebar-border bg-sidebar-accent"><Image size={26} className="text-sidebar-primary" /></div><h2 className="mt-4 text-xl font-bold">Upload an X-ray</h2><p className="mt-2 max-w-sm text-sm opacity-65">Add a readable photo for your doctor. ShifaKinetix checks image quality, not diagnosis.</p><Button className="mt-5 bg-sidebar-primary text-sidebar-primary-foreground" onClick={() => setImagingUploaded(true)} icon={Plus} testId="button-upload-imaging">Take or upload photo</Button></div></div>}</Panel>,
-    Diagnosis: <ReviewCard title="Doctor-only differential" icon={Stethoscope} badge="Restricted clinical view" copy="Working differential is visible to credentialed providers. Patient-facing explanations are shared only after doctor approval." items={['Mechanical low-back pain / strain', 'Facet-mediated irritation', 'Less likely: radicular involvement']} />,
-     Prescription: <PatientPrescriptionView />,
-     Physio: <div className="space-y-5"><LocationSharePanel /><ReviewCard title="Movement plan" icon={Activity} badge="Active" copy="Leo has built a low-load plan that respects the current safety gate and can be adjusted after each session." items={['90/90 breathing · 2 minutes', 'Pelvic tilts · 2 sets of 8', 'Easy walk · 10 minutes']} /></div>,
-    'Follow-Up': <Panel className="p-6"><SectionLabel><RefreshCw size={13} /> 24-hour follow-up</SectionLabel><h2 className="text-2xl font-bold">How is the signal changing?</h2><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">A short check-in can re-run the same safety path whenever something changes—without losing the original record.</p><div className="mt-6 rounded-xl border border-primary/25 bg-primary/5 p-5"><div className="flex gap-3"><ShieldCheck className="mt-0.5 text-primary" size={18} /><div><p className="text-sm font-bold">Last result: SAFE · 23 hours ago</p><p className="mt-1 text-xs leading-5 text-muted-foreground">No red flags recorded in the last screen.</p></div></div><Button className="mt-5" onClick={() => setLocation('/follow-up')} icon={RefreshCw} testId="button-rerun-follow-up">Re-run safety path</Button></div></Panel>,
-   };
-   const consultationModules = ['3D Body Map', 'Reports', 'Imaging', 'Diagnosis', 'Prescription', 'Physio', 'Follow-Up'];
-    const clinicalDataModules = ['3D Body Map', 'Reports', 'Imaging'];
-    const treatmentModules = ['Diagnosis', 'Prescription', 'Physio', 'Follow-Up'];
-   const jumpToModule = (module: string) => {
-     setTab(module);
-     document.getElementById(`care-module-${module.toLowerCase().replaceAll(' ', '-')}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-   };
-   return <div className="animate-rise">
-     <PageHeader eyebrow="Consultation · SK-2048" title="One connected care workspace." detail="Your symptom story, clinician decisions, movement plan, reports, and follow-up all stay connected to this consultation record." action={<div className="flex items-center gap-2"><Badge tone="teal"><LockKeyhole size={11} /> Private record</Badge><Button variant="secondary" icon={Video} onClick={() => setLocation('/booking')} testId="button-book-thread">Book follow-up</Button></div>} />
-     <Panel className="mb-6 overflow-hidden">
-       <div className="border-b border-border bg-sidebar p-5 text-sidebar-foreground md:p-6"><div className="flex flex-col justify-between gap-5 md:flex-row md:items-start"><div className="flex gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sidebar-primary text-sm font-bold text-sidebar-primary-foreground">MC</div><div><p className="font-mono text-[10px] uppercase tracking-[.14em] text-sidebar-primary">Active consultation · SK-2048</p><h2 className="mt-1 text-xl font-bold">Dr. Maya Chen <span className="ml-2 text-sm font-normal opacity-65">with Aisha Rahman</span></h2><p className="mt-1 text-xs opacity-65">Lower back strain · Started 06 May · Last safety screen SAFE</p></div></div><Badge tone="lime"><StatusDot color="lime" /> Active care</Badge></div><div className="mt-6 grid gap-2 md:grid-cols-6">{[['01', 'Intake', 'Recorded'], ['02', 'Safety', 'SAFE'], ['03', 'AI direction', 'Complete'], ['04', 'Doctor', 'Reviewing'], ['05', 'Physio', 'Active'], ['06', 'Follow-up', 'Due in 1h']].map(([number, title, status], i) => <button key={title} type="button" onClick={() => i === 2 ? jumpToModule('Chat') : i === 4 ? jumpToModule('Physio') : i === 5 ? jumpToModule('Follow-Up') : jumpToModule('Overview')} className="rounded-lg border border-sidebar-border bg-sidebar-accent/60 p-3 text-left transition-colors hover:bg-sidebar-accent"><span className="font-mono text-[9px] text-sidebar-primary">{number}</span><p className="mt-2 text-xs font-bold">{title}</p><p className="mt-1 text-[10px] opacity-60">{status}</p></button>)}</div></div>
-        <div className="flex items-center gap-2 overflow-x-auto border-b border-border bg-muted/40 p-2"><span className="shrink-0 px-2 font-mono text-[9px] uppercase tracking-[.12em] text-muted-foreground">Within this record</span><button type="button" onClick={() => setTab('Overview')} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${tab === 'Overview' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:bg-card/70'}`}>Overview</button><button type="button" onClick={() => jumpToModule('Chat')} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${tab === 'Chat' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:bg-card/70'}`}>Chat</button><button type="button" data-testid="button-care-module-clinical-data" onClick={() => jumpToModule('3D Body Map')} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${clinicalDataModules.includes(tab) ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:bg-card/70'}`}>Clinical data</button><button type="button" data-testid="button-care-module-treatment" onClick={() => jumpToModule('Diagnosis')} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${treatmentModules.includes(tab) ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:bg-card/70'}`}>Treatment</button></div>
-       <div className="px-5 py-3"><div className="flex items-center gap-3 text-xs"><span className="h-1.5 w-1.5 rounded-full bg-primary" /><span className="font-bold">Shared care record</span><span className="text-muted-foreground">Every update is attached to the same patient-doctor thread</span><span className="ml-auto hidden text-muted-foreground sm:block">Updated 08 May · 08:26</span></div></div>
-     </Panel>
-     <div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
-       <div id="care-module-chat" className="scroll-mt-6">{tabContent.Chat}</div>
-       <Panel className="h-fit p-5"><SectionLabel><PanelsTopLeft size={13} /> Care modules</SectionLabel><p className="mt-1 text-xs leading-5 text-muted-foreground">These are connected views of the same consultation, not separate records.</p><div className="mt-4 space-y-2">{[['3D Body Map', 'Patient point + clinician annotation', Move3d], ['Reports', 'Doctor-approved summaries', FileText], ['Imaging', 'Readable-view check + viewer', Image], ['Prescription', 'Safety pipeline + sign-off', Pill], ['Physio', 'Plan + session feedback', Activity], ['Follow-Up', '24-hour safety recheck', RefreshCw]].map(([module, detail, Icon]) => <button key={module as string} type="button" onClick={() => jumpToModule(module as string)} className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors ${tab === module ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}><div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary"><Icon size={15} /></div><div className="flex-1"><p className="text-xs font-bold">{module as string}</p><p className="mt-1 text-[10px] text-muted-foreground">{detail as string}</p></div><ArrowRight size={14} className="text-muted-foreground" /></button>)}</div><div className="mt-5 rounded-lg border border-accent/60 bg-accent/30 p-3"><p className="text-[10px] font-bold text-accent-foreground">Continuity rule</p><p className="mt-1 text-[10px] leading-4 text-accent-foreground/80">Lab, imaging, physio, and follow-up updates return to this same consultation timeline.</p></div></Panel>
-     </div>
-     <div className="mt-5 grid gap-5 md:grid-cols-2">{consultationModules.map(module => <div id={`care-module-${module.toLowerCase().replaceAll(' ', '-')}`} className="scroll-mt-6" key={module}>{tabContent[module]}</div>)}</div>
-   </div>;
-}
-
-function DoctorXRayViewer() {
-  return <Panel className="p-6"><div className="flex items-start justify-between gap-3"><div><SectionLabel><Image size={13} /> Imaging</SectionLabel><h2 className="text-xl font-bold">X-Ray Viewer</h2></div></div><div className="mt-5 rounded-xl border border-border p-4"><div className="mb-4 flex h-64 items-center justify-center rounded-lg bg-muted/30"><Image size={40} className="text-muted-foreground opacity-20" /></div><div className="flex justify-center gap-4 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Search size={14} /> Zoom</span><span className="flex items-center gap-1"><Move3d size={14} /> Pan</span><span className="flex items-center gap-1"><SunMedium size={14} /> Brightness</span><span className="flex items-center gap-1"><Activity size={14} /> Contrast</span></div></div><div className="mt-5 rounded-xl border border-accent/70 bg-accent/25 p-4"><p className="text-sm font-bold">Can't confirm from image?</p><p className="mt-1 text-xs text-muted-foreground">If the image quality is poor or insufficient, refer the patient to an in-person assessment.</p><Button variant="secondary" className="mt-3" icon={CalendarDays} testId="button-doctor-refer-in-person">Refer to in-person appointment</Button></div></Panel>;
-}
-
-function DoctorConsultationPage({ setLocation, consultation }: { setLocation: (path: string) => void; consultation: ConsultationState }) {
-  const [tab, setTab] = useState('Overview');
-  const sections: Record<string, ReactNode> = {
-    Overview: <div className="space-y-5">
-      <div className="grid gap-5 lg:grid-cols-[.85fr_1.15fr]">
-        <Panel className="p-6"><SectionLabel><UserRound size={13} /> Patient information</SectionLabel><h2 className="text-2xl font-bold">Aisha Rahman</h2><p className="mt-1 text-sm text-muted-foreground">Patient · Consultation SK-2048</p><div className="mt-6 space-y-3 border-t border-border pt-5 text-sm"><div className="flex justify-between gap-3"><span className="text-muted-foreground">Reported region</span><strong>{consultation.region}</strong></div><div className="flex justify-between gap-3"><span className="text-muted-foreground">Patient point</span><strong>{consultation.point}</strong></div><div className="flex justify-between gap-3"><span className="text-muted-foreground">Safety gate</span><Badge tone="teal">SAFE</Badge></div></div></Panel>
-        <Panel className="p-6"><SectionLabel><Sparkles size={13} /> AI summary</SectionLabel><p className="text-sm leading-6">Localized {consultation.region.toLowerCase()} discomfort with no confirmed trauma. The patient selected a specific point during structured intake and completed the fixed red-flag screen.</p><div className="mt-5 rounded-xl border border-accent/70 bg-accent/30 p-4 text-xs leading-5"><strong>Clinician decision required:</strong> review the draft, differential, and patient context before sending any plan.</div></Panel>
-      </div>
-      <DoctorClinicalReview consultation={consultation} />
-    </div>,
-    Chat: <Panel className="flex min-h-[500px] flex-col p-0"><div className="border-b border-border p-5"><SectionLabel><MessageSquare size={13} /> Patient consultation thread</SectionLabel><p className="text-sm font-bold">Aisha Rahman · active care</p></div><div className="flex-1 space-y-4 bg-muted/40 p-5"><div className="max-w-[78%] rounded-2xl rounded-tl-sm border border-border bg-card p-4"><div className="mb-2 font-mono text-[10px] text-primary">AI INTAKE SUMMARY</div><p className="text-sm leading-6">Patient reports intermittent discomfort in the {consultation.region.toLowerCase()}. Fixed safety questions are recorded as SAFE.</p></div><div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-sm bg-primary p-4 text-primary-foreground"><div className="mb-2 font-mono text-[10px] opacity-70">AISHA · 08:26</div><p className="text-sm leading-6">The first few minutes felt stiff, then it eased. I noticed a little pulling on the left.</p></div></div><div className="flex items-center justify-between gap-3 border-t border-border p-4"><span className="text-xs text-muted-foreground">Doctor notes return to this same consultation record.</span><Button onClick={() => setTab('Treatment')} icon={FileText} testId="button-open-doctor-treatment">Open treatment review</Button></div></Panel>,
-    'Clinical data': <div className="space-y-5"><DoctorAnnotationTool consultation={consultation} /><DocumentList title="Patient reports" icon={FileText} items={['Structured symptom intake · 06 May', 'CBC Report · Aug 20, 2026', 'Imaging · Awaiting upload']} /><DoctorXRayViewer /></div>,
-    Treatment: <div className="space-y-5"><DoctorClinicalReview consultation={consultation} /><DoctorPrescriptionDraft /></div>,
-  };
-  return <div className="animate-rise">
-    <button data-testid="button-back-doctor-dashboard" onClick={() => setLocation('/doctor')} className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={16} /> Back to doctor dashboard</button>
-    <PageHeader eyebrow="Doctor consultation · SK-2048" title="Aisha Rahman’s care thread." detail="Review the patient’s context, make clinical decisions, and keep annotations, reports, treatment, and follow-up attached to one case." action={<Badge tone="coral"><Stethoscope size={12} /> Doctor view</Badge>} />
-    <Panel className="mb-6 overflow-hidden"><div className="border-b border-border bg-sidebar p-5 text-sidebar-foreground md:p-6"><div className="flex flex-col justify-between gap-4 md:flex-row md:items-start"><div className="flex items-center gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sidebar-primary text-sm font-bold text-sidebar-primary-foreground">AR</div><div><p className="font-mono text-[10px] uppercase tracking-[.14em] text-sidebar-primary">Patient consultation · active</p><h2 className="mt-1 text-xl font-bold">Lower back strain <span className="ml-2 text-sm font-normal opacity-65">· Aisha Rahman</span></h2><p className="mt-1 text-xs opacity-65">SAFE gate · intake point {consultation.point} · last update 08:26</p></div></div><Badge tone="lime"><StatusDot color="lime" /> Needs your review</Badge></div></div><div className="flex items-center gap-2 overflow-x-auto bg-muted/40 p-2"><span className="shrink-0 px-2 font-mono text-[9px] uppercase tracking-[.12em] text-muted-foreground">Within this case</span>{threadTabs.map(section => <button key={section} type="button" data-testid={`button-doctor-case-${section.toLowerCase().replaceAll(' ', '-')}`} onClick={() => setTab(section)} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${tab === section ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:bg-card/70'}`}>{section}</button>)}</div></Panel>
-    {sections[tab]}
-  </div>;
-}
-
-function PhysioCasePage({ setLocation }: { setLocation: (path: string) => void }) {
-  const [feedback, setFeedback] = useState('good');
-  const [sent, setSent] = useState(false);
-  const [referred, setReferred] = useState(false);
-  return <div className="animate-rise">
-    <button data-testid="button-back-physio-case" onClick={() => setLocation('/physio')} className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={16} /> Back to physio board</button>
-    <PageHeader eyebrow="Physio case · Shared care record" title="Turn clinical context into movement." detail="This session stays connected to the doctor’s consultation thread, whether the patient was referred or requested physio directly." action={<Badge tone="lime"><Activity size={12} /> Physio view</Badge>} />
-    <Panel className="mb-6 overflow-hidden"><div className="bg-sidebar p-5 text-sidebar-foreground md:p-6"><div className="flex flex-col justify-between gap-4 md:flex-row md:items-start"><div className="flex items-center gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sidebar-primary text-sm font-bold text-sidebar-primary-foreground">AR</div><div><p className="font-mono text-[10px] uppercase tracking-[.14em] text-sidebar-primary">Physio case · SK-2048</p><h2 className="mt-1 text-xl font-bold">Aisha Rahman <span className="ml-2 text-sm font-normal opacity-65">· Lower back strain</span></h2><p className="mt-1 text-xs opacity-65">Doctor-referred · safety context already available</p></div></div><Badge tone="teal"><StatusDot /> SAFE · ready for movement</Badge></div></div><div className="grid gap-3 bg-muted/40 p-4 md:grid-cols-2"><div className="rounded-xl border border-border bg-card p-4"><p className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">Referral route</p><p className="mt-2 text-sm font-bold">Doctor-referred</p><p className="mt-1 text-xs leading-5 text-muted-foreground">No duplicate symptom intake is needed. The existing clinical context is the starting point.</p></div><div className="rounded-xl border border-border bg-card p-4"><p className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">Patient-requested route</p><p className="mt-2 text-sm font-bold">Safety intake required</p><p className="mt-1 text-xs leading-5 text-muted-foreground">New physio requests without an assessment begin with 3D mapping and red-flag screening.</p></div></div></Panel>
-    <div className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]"><ReviewCard title="Treatment session" icon={Activity} badge="Ready" copy="Use the shared body map and safety result to guide a low-load session. Stop and route back to the doctor if the signal changes." items={['Confirm lower-back point · L4 · 48, 42', '90/90 breathing · 2 minutes', 'Pelvic tilts · 2 sets of 8', 'Easy walk · 10 minutes']} /><Panel className="p-6"><SectionLabel><MessageSquare size={13} /> Session feedback</SectionLabel><h2 className="text-xl font-bold">How did the session land?</h2><div className="mt-5 grid gap-2 sm:grid-cols-3">{[['easy', 'Too easy'], ['good', 'Right level'], ['hard', 'Too hard']].map(([id, title]) => <button key={id} data-testid={`button-case-feedback-${id}`} onClick={() => setFeedback(id)} className={`rounded-lg border p-3 text-xs font-bold ${feedback === id ? id === 'hard' ? 'border-destructive bg-destructive/10 text-destructive' : 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/40'}`}>{title}</button>)}</div><textarea data-testid="input-case-session-note" placeholder="Record exercises performed and patient response…" className="mt-4 min-h-28 w-full resize-none rounded-lg border border-border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/20" /><div className="mt-4 flex flex-wrap gap-2"><Button onClick={() => setSent(true)} icon={sent ? Check : Send} testId="button-send-feedback-to-doctor">{sent ? 'Sent to doctor thread' : 'Send to doctor thread'}</Button><Button variant="danger" onClick={() => setReferred(!referred)} icon={Stethoscope} testId="button-case-refer-doctor">{referred ? 'Doctor referral queued' : 'Refer to doctor'}</Button></div>{sent && <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-primary"><CheckCircle2 size={14} /> Session feedback is now part of SK-2048.</p>}</Panel></div>
-  </div>;
-}
-
-function DocumentList({ title, icon: Icon, items }: { title: string; icon: IconType; items: string[] }) {
-  const [opened, setOpened] = useState<number | null>(null);
-  return <Panel className="p-6"><SectionLabel><Icon size={13} /> {title}</SectionLabel><div className="space-y-3">{items.map((item, i) => <div key={item} className="flex items-center gap-4 rounded-xl border border-border p-4"><div className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 text-primary"><FileText size={16} /></div><div className="flex-1"><p className="text-sm font-bold">{item}</p><p className="mt-1 font-mono text-[10px] text-muted-foreground">{opened === i ? 'Preview open' : i === 2 ? 'Pending' : 'Verified record'}</p></div><Button variant="ghost" className="px-2" onClick={() => setOpened(opened === i ? null : i)} icon={opened === i ? X : ArrowRight} testId={`button-open-document-${i}`}>{opened === i ? 'Close' : 'Open'}</Button></div>)}</div></Panel>;
-}
-
-function ReviewCard({ title, icon: Icon, badge, copy, items }: { title: string; icon: IconType; badge: string; copy: string; items: string[] }) {
-  return <Panel className="p-6"><div className="flex items-start justify-between gap-4"><SectionLabel><Icon size={13} /> Clinical module</SectionLabel><Badge tone="lime">{badge}</Badge></div><h2 className="text-2xl font-bold tracking-[-.04em]">{title}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{copy}</p><div className="mt-6 space-y-3">{items.map((item, i) => <div className="flex items-center gap-3 rounded-lg border border-border p-4" key={item}><div className={`grid h-7 w-7 place-items-center rounded-full ${i === items.length - 1 ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'}`}>{i === items.length - 1 ? <Clock3 size={13} /> : <Check size={13} />}</div><span className="text-sm font-semibold">{item}</span></div>)}</div></Panel>;
-}
-
-function FollowUpPage({ setLocation }: { setLocation: (path: string) => void }) {
-  const [selected, setSelected] = useState('same');
-  const [done, setDone] = useState(false);
-  return <div className="mx-auto max-w-4xl animate-rise"><PageHeader eyebrow="Continuity check · 24 hours" title="Re-check the signal." detail="Follow-up keeps the safety path alive after the first conversation. If anything has changed, we start at the fixed red-flag screen again." action={<Badge tone="teal"><RefreshCw size={12} /> Rerunnable workflow</Badge>} /><Panel className="p-6 md:p-8"><SectionLabel><HeartPulse size={13} /> Progress check</SectionLabel>{done ? <div className="py-10 text-center"><div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground"><Check size={30} /></div><h2 className="mt-5 text-2xl font-bold">Check-in saved safely.</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Your care team can see that today’s symptoms feel stable. The next scheduled touchpoint is with Leo at 18:30.</p><Button className="mt-6" onClick={() => setLocation('/thread')} icon={ArrowRight} testId="button-return-thread">Return to consultation</Button></div> : <><h2 className="text-2xl font-bold tracking-[-.04em]">Compared with yesterday, how does it feel?</h2><div className="mt-6 grid gap-3 sm:grid-cols-3">{[['better', 'A little better', 'Movement feels easier'], ['same', 'About the same', 'No meaningful change'], ['worse', 'Different or worse', 'Something needs a fresh look']].map(([id, title, copy]) => <button key={id} data-testid={`button-followup-${id}`} onClick={() => setSelected(id)} className={`rounded-xl border p-4 text-left ${selected === id ? id === 'worse' ? 'border-destructive bg-destructive/10' : 'border-primary bg-primary/10' : 'border-border hover:border-primary/40'}`}><div className="flex items-center justify-between"><span className="text-sm font-bold">{title}</span><div className={`h-4 w-4 rounded-full border-4 ${selected === id ? id === 'worse' ? 'border-destructive' : 'border-primary' : 'border-border'}`} /></div><p className="mt-2 text-xs text-muted-foreground">{copy}</p></button>)}</div>{selected === 'worse' && <div className="mt-5 flex gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm"><AlertCircle size={17} className="shrink-0 text-destructive" /><p className="leading-5">A change can alter the safety result. The next step will run the fixed red-flag questions before any AI direction.</p></div>}<div className="mt-8 flex flex-col justify-between gap-3 border-t border-border pt-5 sm:flex-row sm:items-center"><span className="text-xs text-muted-foreground">You can also report a completely new symptom.</span><Button variant={selected === 'worse' ? 'danger' : 'primary'} onClick={() => selected === 'worse' ? setLocation('/intake') : setDone(true)} icon={selected === 'worse' ? RefreshCw : CheckCircle2} testId="button-submit-followup">{selected === 'worse' ? 'Re-run safety path' : 'Save check-in'}</Button></div></>}</Panel></div>;
-}
-
-function DoctorDashboard({ setLocation }: { setLocation: (path: string) => void }) {
-  const [soap, setSoap] = useState(false);
-  const [report, setReport] = useState(false);
-  const [rx, setRx] = useState('pending');
-  return <div className="animate-rise"><PageHeader eyebrow="Doctor lane · Tuesday 07 May" title="Review what needs a clinical decision." detail="AI organizes the work. You make the call. Red flags, differential, SOAP, reports, imaging, and prescriptions stay visibly separated." action={<Button icon={Search} variant="secondary" onClick={() => setLocation('/thread')} testId="button-search-cases">Search cases</Button>} /><div className="mb-6 grid gap-4 md:grid-cols-4"><Metric label="Awaiting review" value="07" note="2 new since morning" icon={ClipboardCheck} /><Metric label="Red-flag watch" value="02" note="needs human routing" icon={AlertCircle} tone="coral" /><Metric label="Reports to sign" value="04" note="3 ready, 1 draft" icon={FileCheck2} tone="lime" /><Metric label="Today’s coverage" value="84%" note="of scheduled reviews" icon={Activity} /></div><div className="grid gap-6 xl:grid-cols-[1.05fr_1.4fr]"><Panel className="p-6"><div className="flex items-center justify-between"><SectionLabel><AlertCircle size={13} /> Red-flag cases</SectionLabel><Badge tone="coral">Needs routing</Badge></div><div className="space-y-3">{[['SK-2051', 'M. Ibrahim', 'New bilateral weakness', '2m ago'], ['SK-2044', 'R. Okafor', 'Not sure · injury screen', '18m ago'], ['SK-2039', 'E. Stone', 'Fever reported at follow-up', '42m ago']].map(([id, name, issue, time], i) => <button key={id} data-testid={`button-red-flag-${id}`} onClick={() => setLocation('/thread')} className="group flex w-full items-center gap-3 rounded-xl border border-border p-3 text-left hover:border-destructive/45 hover:bg-destructive/5"><div className="grid h-10 w-10 place-items-center rounded-lg bg-destructive/10 font-mono text-[10px] font-bold text-destructive">{i === 0 ? 'URG' : 'RFL'}</div><div className="min-w-0 flex-1"><div className="flex justify-between gap-2"><p className="text-sm font-bold">{name}</p><span className="font-mono text-[10px] text-muted-foreground">{time}</span></div><p className="mt-1 truncate text-xs text-muted-foreground">{id} · {issue}</p></div><ArrowRight size={15} className="text-muted-foreground transition-transform group-hover:translate-x-1" /></button>)}</div><Button variant="secondary" className="mt-4 w-full" onClick={() => setLocation('/thread')} icon={ArrowRight} testId="button-view-all-red-flags">View all flagged cases</Button></Panel><Panel className="p-6"><div className="flex items-center justify-between"><SectionLabel><FileCheck2 size={13} /> Active case · SK-2048</SectionLabel><Badge tone="teal"><StatusDot /> Safe lane</Badge></div><div className="flex flex-col justify-between gap-4 sm:flex-row"><div><h2 className="text-2xl font-bold tracking-[-.04em]">Aisha Rahman</h2><p className="mt-1 text-sm text-muted-foreground">Lower back strain · Reported 06 May</p></div><Button variant="secondary" onClick={() => setLocation('/thread')} icon={MessageSquare} testId="button-open-doctor-thread">Open thread</Button></div><div className="mt-6 grid gap-3 sm:grid-cols-2"><div className="rounded-xl border border-border p-4"><div className="flex items-center justify-between"><span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">SOAP note</span>{soap ? <Badge tone="teal">Approved</Badge> : <Badge>Draft</Badge>}</div><p className="mt-3 text-sm leading-5">Mechanical pattern; no fixed red flags on latest screen.</p><Button variant={soap ? 'ghost' : 'secondary'} className="mt-4 w-full" onClick={() => setSoap(!soap)} icon={soap ? Check : FileCheck2} testId="button-approve-soap">{soap ? 'SOAP approved' : 'Approve SOAP'}</Button></div><div className="rounded-xl border border-border p-4"><div className="flex items-center justify-between"><span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">Patient report</span>{report ? <Badge tone="teal">Signed</Badge> : <Badge>Ready</Badge>}</div><p className="mt-3 text-sm leading-5">Readable summary with safety context and care next steps.</p><Button variant={report ? 'ghost' : 'secondary'} className="mt-4 w-full" onClick={() => setReport(!report)} icon={report ? Check : FileCheck2} testId="button-approve-report">{report ? 'Report signed' : 'Approve report'}</Button></div></div></Panel><Panel className="p-6"><div className="flex items-center justify-between"><SectionLabel><Pill size={13} /> Prescription safety pipeline</SectionLabel><Badge tone={rx === 'approved' ? 'teal' : 'lime'}>{rx === 'approved' ? 'Approved' : 'Review required'}</Badge></div><div className="grid gap-2 md:grid-cols-3">{[['Contraindications', 'No conflicts found', Check], ['Interactions', 'No active medications listed', Check], ['Final approval', rx === 'approved' ? 'Approved by you' : 'Awaiting your call', rx === 'approved' ? Check : Clock3]].map(([title, copy, Icon], i) => <div className={`rounded-xl border p-4 ${i === 2 && rx !== 'approved' ? 'border-accent bg-accent/30' : 'border-border'}`} key={title as string}><Icon size={16} className={i === 2 && rx !== 'approved' ? 'text-accent-foreground' : 'text-primary'} /><div className="mt-3 text-sm font-bold">{title as string}</div><p className="mt-1 text-xs text-muted-foreground">{copy as string}</p></div>)}</div><Button className="mt-5" variant={rx === 'approved' ? 'ghost' : 'primary'} onClick={() => setRx(rx === 'approved' ? 'pending' : 'approved')} icon={rx === 'approved' ? RefreshCw : ShieldCheck} testId="button-prescription-approval">{rx === 'approved' ? 'Reopen safety review' : 'Approve safe prescription'}</Button></Panel><Panel className="p-6"><SectionLabel><Image size={13} /> Imaging viewer</SectionLabel><div className="flex items-center gap-4 rounded-xl bg-sidebar p-5 text-sidebar-foreground"><div className="grid h-12 w-12 place-items-center rounded-xl bg-sidebar-accent text-sidebar-primary"><Image size={20} /></div><div className="flex-1"><p className="text-sm font-bold">Lumbar spine · no study attached</p><p className="mt-1 text-xs opacity-60">The viewer will preserve original files and your annotation layer.</p></div><Button variant="secondary" className="border-sidebar-border bg-sidebar-accent text-sidebar-foreground" onClick={() => setLocation('/thread')} icon={PanelsTopLeft} testId="button-open-imaging-viewer">Open viewer</Button></div></Panel></div></div>;
-}
-
-function PhysioDashboard({ setLocation }: { setLocation: (path: string) => void }) {
-  const [feedback, setFeedback] = useState('good');
-  const [referred, setReferred] = useState(false);
-  return <div className="animate-rise"><PageHeader eyebrow="Physio lane · Tuesday 07 May" title="Turn clinical context into movement." detail="See the body map, respect the safety gate, build the exercise plan, and send a doctor referral without breaking continuity." action={<Badge tone="lime"><StatusDot color="lime" /> 04 active patients</Badge>} /><div className="grid gap-6 xl:grid-cols-[1.2fr_.8fr]"><Panel className="p-6"><div className="flex items-center justify-between"><SectionLabel><UsersRound size={13} /> Today’s care board</SectionLabel><Button variant="secondary" onClick={() => setLocation('/physio-intake')} icon={Plus} testId="button-add-session">Start physio intake</Button></div><div className="space-y-3">{[['Aisha Rahman', 'Lower back · Day 08', '18:30', 'teal'], ['Noah Williams', 'Right shoulder · Day 03', '19:15', 'lime'], ['Priya Shah', 'Post-op knee · Day 12', '20:00', 'coral']].map(([name, detail, time, tone]) => <button key={name} data-testid={`button-patient-${name.toLowerCase().replaceAll(' ', '-')}`} onClick={() => setLocation('/thread')} className="flex w-full items-center gap-4 rounded-xl border border-border p-4 text-left transition-colors hover:border-primary/40"><div className={`grid h-11 w-11 place-items-center rounded-full font-bold ${tone === 'coral' ? 'bg-destructive/10 text-destructive' : tone === 'lime' ? 'bg-accent text-accent-foreground' : 'bg-primary/10 text-primary'}`}>{(name as string).split(' ').map(part => part[0]).join('')}</div><div className="min-w-0 flex-1"><p className="text-sm font-bold">{name}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div><div className="text-right"><p className="font-mono text-xs font-bold">{time}</p><p className="mt-1 flex items-center justify-end gap-1 text-[10px] text-primary"><StatusDot color={tone as 'teal' | 'coral' | 'lime'} /> {tone === 'coral' ? 'Review' : 'On track'}</p></div><ArrowRight size={15} className="text-muted-foreground" /></button>)}</div></Panel><Panel className="p-6"><SectionLabel><Move3d size={13} /> Aisha · body map</SectionLabel><div className="flex items-center gap-5"><div className="relative h-44 w-24 shrink-0"><div className="absolute left-1/2 top-0 h-9 w-9 -translate-x-1/2 rounded-full border border-primary bg-primary/10" /><div className="absolute left-1/2 top-9 h-20 w-16 -translate-x-1/2 rounded-[45%] border border-primary bg-primary/10" /><div className="absolute left-1/2 top-[74px] h-7 w-14 -translate-x-1/2 rounded-full bg-destructive/40 ring-4 ring-destructive/10" /><div className="absolute left-[22px] top-28 h-16 w-3 rounded-full border border-primary/70" /><div className="absolute right-[22px] top-28 h-16 w-3 rounded-full border border-primary/70" /></div><div><Badge tone="teal">SAFE</Badge><h3 className="mt-3 text-lg font-bold">Lower back · left</h3><p className="mt-1 text-xs leading-5 text-muted-foreground">3 / 10 · dull / pulling · no spread below knee</p><Button variant="secondary" className="mt-4" onClick={() => setLocation('/thread')} icon={Move3d} testId="button-open-physio-map">Open full map</Button></div></div></Panel><Panel className="p-6"><div className="flex items-center justify-between"><SectionLabel><Activity size={13} /> Exercise plan</SectionLabel><Badge tone="teal">Version 2</Badge></div><div className="space-y-3">{[['90/90 breathing', '2 min', 'Active'], ['Pelvic tilts', '2 × 8 reps', 'Active'], ['Easy walk', '10 min', 'Active']].map(([exercise, dose, status]) => <div className="flex items-center gap-3 rounded-lg border border-border p-3" key={exercise}><div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary"><Play size={14} /></div><div className="flex-1"><p className="text-sm font-bold">{exercise}</p><p className="font-mono text-[10px] text-muted-foreground">{dose}</p></div><Badge tone="teal">{status}</Badge><MoreHorizontal size={16} className="text-muted-foreground" /></div>)}</div><Button variant="secondary" className="mt-4" onClick={() => setLocation('/thread')} icon={FileText} testId="button-edit-exercise-plan">Edit exercise plan</Button></Panel><Panel className="p-6"><SectionLabel><MessageSquare size={13} /> Session feedback</SectionLabel><h2 className="text-xl font-bold">How did the last set land?</h2><div className="mt-5 grid gap-2 sm:grid-cols-3">{[['easy', 'Too easy'], ['good', 'Right level'], ['hard', 'Too hard']].map(([id, title]) => <button key={id} data-testid={`button-feedback-${id}`} onClick={() => setFeedback(id)} className={`rounded-lg border p-3 text-xs font-bold ${feedback === id ? id === 'hard' ? 'border-destructive bg-destructive/10 text-destructive' : 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/40'}`}>{title}</button>)}</div><textarea data-testid="input-session-note" placeholder="Add a short session note…" className="mt-4 min-h-24 w-full resize-none rounded-lg border border-border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/20" /><div className="mt-4 flex flex-wrap gap-2"><Button onClick={() => setLocation('/thread')} icon={Check} testId="button-save-feedback">Save feedback</Button><Button variant="danger" onClick={() => setReferred(!referred)} icon={Stethoscope} testId="button-refer-doctor">{referred ? 'Doctor referral queued' : 'Refer to doctor'}</Button></div>{referred && <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-destructive"><CheckCircle2 size={14} /> Referral added to the shared thread.</p>}</Panel></div></div>;
-}
-
-function PaymentPage({ setLocation }: { setLocation: (path: string) => void }) {
-  const [paid, setPaid] = useState(false);
-  const [consent, setConsent] = useState(false);
-  return <div className="mx-auto max-w-4xl animate-rise"><button data-testid="button-back-booking" onClick={() => setLocation('/booking')} className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={16} /> Back to booking</button><PageHeader eyebrow="Secure checkout · Direct appointment" title="Confirm your care, clearly." detail="A prototype payment surface with a simple price, provider identity, and no hidden clinical steps." /><div className="grid gap-6 md:grid-cols-[1.15fr_.85fr]">{paid ? <Panel className="p-8 text-center md:col-span-2"><div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground"><Check size={30} /></div><h2 className="mt-5 text-2xl font-bold">Appointment confirmed.</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Dr. Maya Chen · Wed 08 May at 09:30. A protected consultation thread has been created for you.</p><div className="mt-6 flex justify-center gap-3"><Button variant="secondary" onClick={() => setLocation('/thread')} icon={MessageSquare} testId="button-open-new-thread">Open consultation</Button><Button onClick={() => setLocation('/')} icon={ArrowRight} testId="button-return-home">Return home</Button></div></Panel> : <><Panel className="p-6 md:p-8"><SectionLabel><WalletCards size={13} /> Payment method</SectionLabel><div className="rounded-xl border border-primary/30 bg-primary/5 p-4"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-lg bg-primary text-primary-foreground"><WalletCards size={18} /></div><div><p className="text-sm font-bold">Card ending in 2048</p><p className="text-xs text-muted-foreground">Personal payment method · Protected</p></div><Badge tone="teal">Ready</Badge></div></div><div className="mt-5 space-y-3"><label className="block text-xs font-bold text-muted-foreground">Cardholder name<input data-testid="input-cardholder" defaultValue="Aisha Rahman" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20" /></label><label className="block text-xs font-bold text-muted-foreground">Card number<input data-testid="input-card-number" defaultValue="4242 4242 4242 2048" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 font-mono text-sm outline-none focus:ring-2 focus:ring-primary/20" /></label><div className="grid grid-cols-2 gap-3"><label className="block text-xs font-bold text-muted-foreground">Expiry<input data-testid="input-card-expiry" defaultValue="08 / 26" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 font-mono text-sm outline-none focus:ring-2 focus:ring-primary/20" /></label><label className="block text-xs font-bold text-muted-foreground">CVC<input data-testid="input-card-cvc" defaultValue="•••" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 font-mono text-sm outline-none focus:ring-2 focus:ring-primary/20" /></label></div></div><label className="mt-5 flex gap-3 text-xs leading-5 text-muted-foreground"><input data-testid="input-payment-consent" type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]" />I understand this confirms a provider appointment and does not represent a diagnosis or treatment guarantee.</label></Panel><Panel className="h-fit p-6 md:p-8"><SectionLabel><ClipboardCheck size={13} /> Order summary</SectionLabel><div className="space-y-4 text-sm"><div className="flex justify-between"><span className="text-muted-foreground">Provider</span><strong>Dr. Maya Chen</strong></div><div className="flex justify-between"><span className="text-muted-foreground">Appointment</span><strong>Wed 08 May · 09:30</strong></div><div className="flex justify-between"><span className="text-muted-foreground">Format</span><strong>Video consult</strong></div><div className="border-t border-border pt-4"><div className="flex items-end justify-between"><span className="font-bold">Total due</span><strong className="text-3xl tracking-[-.06em]">$48.00</strong></div></div></div><Button disabled={!consent} className="mt-6 w-full" onClick={() => setPaid(true)} icon={LockKeyhole} testId="button-confirm-payment">Confirm secure payment</Button><p className="mt-4 flex justify-center gap-1.5 text-center text-[10px] text-muted-foreground"><ShieldCheck size={12} /> Encrypted prototype checkout</p></Panel></>}</div></div>;
-}
-
+/* -------------------------------------------------------------
+   VERIFICATION PAGE
+-------------------------------------------------------------- */
 function VerificationPage() {
-  const [reviewed, setReviewed] = useState(false);
-  const [mode, setMode] = useState<'provider' | 'credentials'>('provider');
-  return <div className="mx-auto max-w-5xl animate-rise"><PageHeader eyebrow="Trust layer · Provider verification" title="The credential trail is part of care." detail="A clear review state gives patients confidence and gives providers a place to see what has been verified, reviewed, or still needs evidence." action={<Badge tone={reviewed ? 'teal' : 'lime'}><BadgeCheck size={12} /> {reviewed ? 'Review complete' : 'Review in progress'}</Badge>} /><div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]"><Panel className="p-5"><div className="mb-4 flex gap-2 rounded-lg bg-muted p-1"><button data-testid="button-verification-provider" onClick={() => setMode('provider')} className={`flex-1 rounded-md py-2 text-xs font-bold ${mode === 'provider' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Provider view</button><button data-testid="button-verification-credentials" onClick={() => setMode('credentials')} className={`flex-1 rounded-md py-2 text-xs font-bold ${mode === 'credentials' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Credential review</button></div><div className="rounded-xl bg-sidebar p-5 text-sidebar-foreground"><div className="grid h-14 w-14 place-items-center rounded-full bg-sidebar-primary text-lg font-bold text-sidebar-primary-foreground">MC</div><h2 className="mt-4 text-xl font-bold">Dr. Maya Chen</h2><p className="mt-1 text-sm opacity-65">Musculoskeletal physician</p><div className="mt-6 space-y-3 border-t border-sidebar-border pt-4 text-xs"><div className="flex justify-between"><span className="opacity-60">License region</span><strong>Ontario, CA</strong></div><div className="flex justify-between"><span className="opacity-60">Provider ID</span><strong className="font-mono">SK-P-1842</strong></div><div className="flex justify-between"><span className="opacity-60">Last reviewed</span><strong>06 May 2024</strong></div></div></div></Panel><Panel className="p-6 md:p-8"><SectionLabel><FileCheck2 size={13} /> {mode === 'provider' ? 'Patient-facing trust summary' : 'Internal credential review'}</SectionLabel>{mode === 'provider' ? <><h2 className="text-2xl font-bold">Verified to practice in this care lane.</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Patients see a human-readable summary while the full evidence remains protected for the review team.</p><div className="mt-7 space-y-3">{[['Identity matched', 'Government ID and profile match confirmed'], ['License current', 'License checked against issuing registry'], ['Scope reviewed', 'Musculoskeletal assessment and follow-up'], ['Secure practice', 'Privacy and escalation training complete']].map(([a, b]) => <div className="flex gap-3 rounded-lg border border-border p-4" key={a}><div className="grid h-7 w-7 place-items-center rounded-full bg-primary/10 text-primary"><Check size={14} /></div><div><p className="text-sm font-bold">{a}</p><p className="mt-1 text-xs text-muted-foreground">{b}</p></div></div>)}</div><Button className="mt-6" onClick={() => setReviewed(true)} icon={BadgeCheck} testId="button-mark-verification-reviewed">{reviewed ? 'Verification acknowledged' : 'Acknowledge review'}</Button></> : <><h2 className="text-2xl font-bold">Evidence review console.</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">This internal surface makes the provider approval state explicit before they enter a patient care lane.</p><div className="mt-7 space-y-2">{[['Government ID', 'Matched', 'teal'], ['Professional license', 'Registry match', 'teal'], ['Scope of practice', 'Needs reviewer sign-off', 'lime'], ['Insurance certificate', 'Expires in 42 days', 'coral']].map(([a, b, tone]) => <div className="flex items-center gap-3 rounded-lg border border-border p-4" key={a}><FileText size={16} className="text-muted-foreground" /><span className="flex-1 text-sm font-semibold">{a}</span><Badge tone={tone as 'teal' | 'lime' | 'coral'}>{b}</Badge><ChevronDown size={15} className="text-muted-foreground" /></div>)}</div><Button className="mt-6" onClick={() => setReviewed(!reviewed)} icon={reviewed ? RefreshCw : FileCheck2} testId="button-complete-credential-review">{reviewed ? 'Reopen review' : 'Complete credential review'}</Button></>}</Panel></div></div>;
+  return (
+    <div className="mx-auto max-w-3xl animate-rise space-y-6">
+      <PageHeader
+        eyebrow="Module 8 · Trust & Credential Layer"
+        title="Verified Medical Specialists"
+        detail="Doctor verification details and credentials."
+      />
+      <Panel className="p-6">
+        <h3 className="text-lg font-bold">Dr. Maya Chen (PMDC Reg # 49201-B)</h3>
+        <p className="text-xs text-muted-foreground mt-1">Orthopedic Surgeon · Credentialed for async and in-person consultations.</p>
+      </Panel>
+    </div>
+  );
 }
 
-function ProfilePage() {
-  const [saved, setSaved] = useState(false);
-  return <div className="mx-auto max-w-5xl animate-rise"><PageHeader eyebrow="Account · Protected profile" title="Your care settings." detail="Personal details, notification preferences, and the permissions that keep this record useful and private." action={saved && <Badge tone="teal"><Check size={12} /> Saved just now</Badge>} /><div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]"><Panel className="p-6"><div className="grid h-20 w-20 place-items-center rounded-2xl bg-sidebar text-2xl font-bold text-sidebar-primary">AR</div><h2 className="mt-5 text-2xl font-bold">Aisha Rahman</h2><p className="mt-1 text-sm text-muted-foreground">Patient · Member since May 2024</p><div className="mt-7 rounded-xl bg-accent/50 p-4"><div className="flex items-center gap-2 text-sm font-bold"><ShieldCheck size={16} /> Protected record</div><p className="mt-2 text-xs leading-5 text-muted-foreground">Your care team can only access information connected to a consultation you start or accept.</p></div></Panel><Panel className="p-6 md:p-8"><SectionLabel><UserRound size={13} /> Personal information</SectionLabel><div className="grid gap-4 sm:grid-cols-2"><label className="text-xs font-bold text-muted-foreground">First name<input data-testid="input-profile-first-name" defaultValue="Aisha" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20" /></label><label className="text-xs font-bold text-muted-foreground">Last name<input data-testid="input-profile-last-name" defaultValue="Rahman" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20" /></label><label className="text-xs font-bold text-muted-foreground sm:col-span-2">Email<input data-testid="input-profile-email" defaultValue="aisha.rahman@example.com" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20" /></label><label className="text-xs font-bold text-muted-foreground sm:col-span-2">Care preference<select data-testid="select-care-preference" defaultValue="balanced" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"><option value="balanced">Balanced updates · recommended</option><option value="quiet">Only appointment and safety updates</option><option value="full">All care activity</option></select></label></div><div className="mt-8 border-t border-border pt-6"><SectionLabel><LockKeyhole size={13} /> Privacy controls</SectionLabel><div className="space-y-4"><label className="flex items-center justify-between gap-3 text-sm"><span><strong>Share symptom changes with care team</strong><span className="mt-1 block text-xs text-muted-foreground">Keeps doctor and physio aligned</span></span><input data-testid="input-toggle-share" type="checkbox" defaultChecked className="h-5 w-5 accent-[hsl(var(--primary))]" /></label><label className="flex items-center justify-between gap-3 text-sm"><span><strong>Allow safe AI summaries</strong><span className="mt-1 block text-xs text-muted-foreground">AI remains advisory and visible to clinicians</span></span><input data-testid="input-toggle-ai" type="checkbox" defaultChecked className="h-5 w-5 accent-[hsl(var(--primary))]" /></label></div></div><Button className="mt-7" onClick={() => setSaved(true)} icon={Check} testId="button-save-profile">Save profile</Button></Panel></div></div>;
+/* -------------------------------------------------------------
+   PATIENT DASHBOARD (HOME)
+-------------------------------------------------------------- */
+function PatientDashboard({ setLocation }: { setLocation: (path: string) => void }) {
+  const entryCards = [
+    {
+      id: 'report-symptom',
+      title: 'Report a Symptom',
+      subtitle: 'Muscular Model Pinpoint + Safety Check',
+      copy: 'Pinpoint on the anatomical body map. AI asks targeted questions, recommends exercises/diet, and checks red flags.',
+      icon: AlertCircle,
+      tone: 'coral' as const,
+      path: '/intake',
+      actionText: 'Start Symptom Report'
+    },
+    {
+      id: 'care-thread',
+      title: 'My Care & Chat',
+      subtitle: 'Doctor Thread + Lab Reports',
+      copy: 'Chat with Dr. Maya Chen, submit your lab/X-ray reports, and view personalized guidance.',
+      icon: MessageSquare,
+      tone: 'teal' as const,
+      path: '/thread',
+      actionText: 'Open Care Conversation'
+    },
+    {
+      id: 'follow-up',
+      title: '24h Follow-up Check',
+      subtitle: 'Condition Progress Check-in',
+      copy: 'Check in on your recovery 24 hours later. Notify doctor if symptoms are better, stable, or worse.',
+      icon: RefreshCw,
+      tone: 'lime' as const,
+      path: '/follow-up',
+      actionText: 'Check Condition Now'
+    }
+  ];
+
+  return (
+    <div className="mx-auto max-w-5xl animate-rise space-y-8">
+      <PageHeader
+        eyebrow="Patient Care Command"
+        title={<>Simple, Clear Healthcare For <span className="text-primary">Everyone.</span></>}
+        detail="A clean, easy-to-use health prototype. Select an option below to begin your care journey."
+        action={<Badge tone="teal"><ShieldCheck size={14} /> Medical Grade Triage</Badge>}
+      />
+
+      <div className="grid gap-6 md:grid-cols-3">
+        {entryCards.map(card => {
+          const Icon = card.icon;
+          return (
+            <button
+              key={card.id}
+              onClick={() => setLocation(card.path)}
+              className="group flex flex-col justify-between rounded-2xl border border-border bg-card p-6 text-left transition-all hover:-translate-y-1 hover:border-primary hover:shadow-clinic-lg"
+            >
+              <div>
+                <div className={`grid h-12 w-12 place-items-center rounded-xl ${
+                  card.tone === 'coral' ? 'bg-destructive/10 text-destructive' :
+                  card.tone === 'lime' ? 'bg-accent text-accent-foreground' : 'bg-primary/10 text-primary'
+                }`}>
+                  <Icon size={22} />
+                </div>
+                <h3 className="mt-4 text-lg font-bold text-foreground group-hover:text-primary transition-colors">
+                  {card.title}
+                </h3>
+                <p className="text-xs font-semibold text-primary mt-0.5">{card.subtitle}</p>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{card.copy}</p>
+              </div>
+
+              <div className="mt-6 flex items-center justify-between border-t border-border/70 pt-3 text-sm font-bold text-foreground group-hover:text-primary">
+                <span>{card.actionText}</span>
+                <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 flex items-start gap-4">
+        <ShieldCheck className="mt-0.5 shrink-0 text-primary" size={22} />
+        <div>
+          <h4 className="text-sm font-bold text-foreground">Safety First Guarantee</h4>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+            All AI suggestions are reviewed by credentialed doctors. Red flags automatically escalate to direct appointment booking.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function Router({ role, setRole, consultation, setConsultation }: { role: Role; setRole: (role: Role) => void; consultation: ConsultationState; setConsultation: (state: ConsultationState) => void }) {
+/* -------------------------------------------------------------
+   LOGIN PAGE (CLEAN, ACCESSIBLE, DEMO ACCOUNT SELECTOR)
+-------------------------------------------------------------- */
+interface UserAccount {
+  email: string;
+  name: string;
+  role: Role;
+  title: string;
+  avatar: string;
+}
+
+const demoAccounts: UserAccount[] = [
+  {
+    email: 'aisha.patient@shifakinetix.care',
+    name: 'Aisha Rahman',
+    role: 'patient',
+    title: 'Registered Patient',
+    avatar: 'AR'
+  },
+  {
+    email: 'dr.maya.chen@shifakinetix.care',
+    name: 'Dr. Maya Chen',
+    role: 'doctor',
+    title: 'Consultant Orthopedic Surgeon (MBBS, FCPS)',
+    avatar: 'MC'
+  },
+  {
+    email: 'leo.martins@shifakinetix.care',
+    name: 'Leo Martins',
+    role: 'physio',
+    title: 'Lead MSK Physiotherapist (DPT)',
+    avatar: 'LM'
+  }
+];
+
+function LoginPage({
+  onLogin
+}: {
+  onLogin: (account: UserAccount) => void;
+}) {
+  const [selectedEmail, setSelectedEmail] = useState(demoAccounts[0].email);
+  const activeAcc = demoAccounts.find(a => a.email === selectedEmail) || demoAccounts[0];
+
+  const handleSignIn = (e: React.FormEvent) => {
+    e.preventDefault();
+    onLogin(activeAcc);
+  };
+
+  return (
+    <div className="min-h-[100dvh] flex items-center justify-center bg-background px-4 py-12">
+      <div className="w-full max-w-md animate-rise space-y-6">
+        {/* Brand Header */}
+        <div className="text-center space-y-2">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-sidebar text-sidebar-primary shadow-sm">
+            <Activity size={32} strokeWidth={2.5} />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Shifa<span className="text-primary">Kinetix</span>
+          </h1>
+          <p className="text-xs font-mono uppercase tracking-[.2em] text-muted-foreground">
+            Clinical Care & Triage Platform
+          </p>
+        </div>
+
+        {/* Clean Login Card */}
+        <Panel className="p-8 shadow-clinic-lg space-y-6">
+          <div className="space-y-1 text-center">
+            <h2 className="text-xl font-bold text-foreground">Sign In to Your Workspace</h2>
+            <p className="text-xs text-muted-foreground">
+              Select your registered email account to enter the secure portal.
+            </p>
+          </div>
+
+          <form onSubmit={handleSignIn} className="space-y-4">
+            {/* Demo Account Dropdown */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Select Account / Email
+              </label>
+              <select
+                value={selectedEmail}
+                onChange={e => setSelectedEmail(e.target.value)}
+                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold text-foreground outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="aisha.patient@shifakinetix.care">
+                  Patient Account · aisha.patient@shifakinetix.care
+                </option>
+                <option value="dr.maya.chen@shifakinetix.care">
+                  Doctor Account · dr.maya.chen@shifakinetix.care
+                </option>
+                <option value="leo.martins@shifakinetix.care">
+                  Physiotherapist Account · leo.martins@shifakinetix.care
+                </option>
+              </select>
+            </div>
+
+            {/* Selected User Badge */}
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-center gap-3.5">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-sidebar text-sidebar-primary font-bold text-sm">
+                {activeAcc.avatar}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-foreground">{activeAcc.name}</h4>
+                  <Badge tone={activeAcc.role === 'doctor' ? 'coral' : activeAcc.role === 'physio' ? 'lime' : 'teal'}>
+                    {activeAcc.role}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground truncate">{activeAcc.title}</p>
+                <p className="text-[10px] font-mono text-primary truncate mt-0.5">{activeAcc.email}</p>
+              </div>
+            </div>
+
+            {/* Password input preview */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Security Passcode
+              </label>
+              <input
+                type="password"
+                defaultValue="••••••••••••"
+                readOnly
+                className="w-full rounded-xl border border-border bg-muted/30 px-3.5 py-2.5 text-xs font-mono text-muted-foreground outline-none cursor-not-allowed"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">Pre-authenticated for prototype demonstration</p>
+            </div>
+
+            <Button type="submit" className="w-full mt-2" icon={Check} testId="button-signin">
+              Sign In as {activeAcc.name} ({activeAcc.role.toUpperCase()})
+            </Button>
+          </form>
+
+          <div className="pt-2 border-t border-border text-center">
+            <p className="text-[11px] text-muted-foreground flex items-center justify-center gap-1.5">
+              <ShieldCheck size={14} className="text-primary" /> HIPAA & FDA Non-Device CDS Aligned
+            </p>
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------
+   ROUTER & APP ROOT
+-------------------------------------------------------------- */
+function Router({
+  role,
+  setRole,
+  currentUser,
+  setCurrentUser,
+  consultation,
+  setConsultation
+}: {
+  role: Role;
+  setRole: (role: Role) => void;
+  currentUser: UserAccount | null;
+  setCurrentUser: (acc: UserAccount | null) => void;
+  consultation: ConsultationState;
+  setConsultation: (state: ConsultationState) => void;
+}) {
   const [location, setLocation] = useLocation();
-  const page = useMemo(() => {
+
+  // If not logged in, render the clean Login Page
+  if (!currentUser) {
+    return (
+      <LoginPage
+        onLogin={acc => {
+          setCurrentUser(acc);
+          setRole(acc.role);
+          if (acc.role === 'patient') setLocation('/');
+          else if (acc.role === 'doctor') setLocation('/doctor');
+          else setLocation('/physio');
+        }}
+      />
+    );
+  }
+
+  const page = (() => {
     if (location === '/') return <PatientDashboard setLocation={setLocation} />;
     if (location === '/intake') return <IntakePage setLocation={setLocation} onSave={setConsultation} />;
     if (location === '/booking') return <BookingPage setLocation={setLocation} />;
-    if (location === '/physio-intake') return <PhysioIntakePage setLocation={setLocation} />;
-    if (location === '/thread') {
-      if (role === 'doctor') return <DoctorConsultationPage setLocation={setLocation} consultation={consultation} />;
-      if (role === 'physio') return <PhysioCasePage setLocation={setLocation} />;
-      return <ThreadPage setLocation={setLocation} consultation={consultation} />;
-    }
-    if (location === '/follow-up') return <FollowUpPage setLocation={setLocation} />;
-    if (location === '/doctor') return <DoctorDashboard setLocation={setLocation} />;
+    if (location === '/thread') return <ThreadPage setLocation={setLocation} consultation={consultation} onUpdateConsultation={setConsultation} />;
+    if (location === '/follow-up') return <FollowUpPage setLocation={setLocation} consultation={consultation} onUpdateConsultation={setConsultation} />;
+    if (location === '/doctor') return <DoctorDashboard setLocation={setLocation} consultation={consultation} />;
     if (location === '/physio') return <PhysioDashboard setLocation={setLocation} />;
-    if (location === '/payment') return <PaymentPage setLocation={setLocation} />;
     if (location === '/verification') return <VerificationPage />;
-    if (location === '/profile') return <ProfilePage />;
     return <NotFound />;
-  }, [location, setLocation]);
-  return <Shell role={role} setRole={setRole}>{page}</Shell>;
+  })();
+
+  return (
+    <Shell
+      role={role}
+      setRole={r => {
+        setRole(r);
+        const match = demoAccounts.find(a => a.role === r) || demoAccounts[0];
+        setCurrentUser(match);
+      }}
+    >
+      <div className="mb-4 flex items-center justify-between rounded-xl border border-border/70 bg-card/60 px-4 py-2 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-primary" />
+          <span>Signed in as <strong>{currentUser.name}</strong> ({currentUser.email})</span>
+        </div>
+        <button
+          onClick={() => setCurrentUser(null)}
+          className="text-xs font-bold text-destructive hover:underline"
+        >
+          Sign Out
+        </button>
+      </div>
+      {page}
+    </Shell>
+  );
 }
 
 function App() {
   const [role, setRole] = useState<Role>('patient');
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(demoAccounts[0]);
   const [consultation, setConsultation] = useState<ConsultationState>(defaultConsultation);
-  return <QueryClientProvider client={queryClient}><TooltipProvider><ErrorBoundary resetKey={role}><Router role={role} setRole={setRole} consultation={consultation} setConsultation={setConsultation} /></ErrorBoundary><Toaster /></TooltipProvider></QueryClientProvider>;
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <ErrorBoundary resetKey={role}>
+          <Router
+            role={role}
+            setRole={setRole}
+            currentUser={currentUser}
+            setCurrentUser={setCurrentUser}
+            consultation={consultation}
+            setConsultation={setConsultation}
+          />
+        </ErrorBoundary>
+        <Toaster />
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
 }
 
 export default App;
